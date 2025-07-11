@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Friend Chat App</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .chat-container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            width: 90%;
+            max-width: 500px;
+            height: 80vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .chat-header {
+            background: #4a90e2;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            font-size: 1.2em;
+            font-weight: bold;
+        }
+
+        .messages-container {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            background: #f8f9fa;
+        }
+
+        .message {
+            margin-bottom: 15px;
+            padding: 12px 16px;
+            border-radius: 18px;
+            max-width: 80%;
+            word-wrap: break-word;
+        }
+
+        .message.sent {
+            background: #4a90e2;
+            color: white;
+            margin-left: auto;
+            text-align: right;
+        }
+
+        .message.received {
+            background: #e9ecef;
+            color: #333;
+        }
+
+        .message-info {
+            font-size: 0.8em;
+            opacity: 0.7;
+            margin-top: 5px;
+        }
+
+        .input-container {
+            padding: 20px;
+            background: white;
+            border-top: 1px solid #e9ecef;
+            display: flex;
+            gap: 10px;
+        }
+
+        .name-input {
+            padding: 12px;
+            border: 2px solid #e9ecef;
+            border-radius: 25px;
+            flex: 1;
+            font-size: 16px;
+            outline: none;
+        }
+
+        .name-input:focus {
+            border-color: #4a90e2;
+        }
+
+        .message-input {
+            padding: 12px 20px;
+            border: 2px solid #e9ecef;
+            border-radius: 25px;
+            flex: 1;
+            font-size: 16px;
+            outline: none;
+        }
+
+        .message-input:focus {
+            border-color: #4a90e2;
+        }
+
+        .send-button {
+            background: #4a90e2;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            cursor: pointer;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .send-button:hover {
+            background: #357abd;
+        }
+
+        .setup-container {
+            padding: 30px;
+            text-align: center;
+        }
+
+        .setup-container h2 {
+            color: #4a90e2;
+            margin-bottom: 20px;
+        }
+
+        .start-button {
+            background: #4a90e2;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 25px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 15px;
+        }
+
+        .start-button:hover {
+            background: #357abd;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .room-selector {
+            padding: 15px 20px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+            display: flex;
+            gap: 10px;
+            overflow-x: auto;
+        }
+
+        .room-button {
+            background: #e9ecef;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.3s;
+        }
+
+        .room-button.active {
+            background: #4a90e2;
+            color: white;
+        }
+
+        .room-button:hover {
+            background: #357abd;
+            color: white;
+        }
+
+        .current-room {
+            font-size: 0.9em;
+            opacity: 0.8;
+        }
+
+        .header-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+        }
+
+        .private-chat-btn {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 15px;
+            font-size: 0.9em;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .private-chat-btn:hover {
+            background: #218838;
+        }
+
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 20px;
+            width: 90%;
+            max-width: 400px;
+            text-align: center;
+        }
+
+        .modal-content h3 {
+            color: #4a90e2;
+            margin-bottom: 20px;
+        }
+
+        .modal-input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e9ecef;
+            border-radius: 25px;
+            font-size: 16px;
+            outline: none;
+            margin-bottom: 15px;
+        }
+
+        .modal-input:focus {
+            border-color: #4a90e2;
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .modal-button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 20px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .modal-button.primary {
+            background: #4a90e2;
+            color: white;
+        }
+
+        .modal-button.secondary {
+            background: #e9ecef;
+            color: #333;
+        }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #4a90e2;
+            color: white;
+            padding: 15px 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            z-index: 1001;
+            max-width: 300px;
+        }
+
+        .notification.request {
+            background: #28a745;
+        }
+
+        .notification-buttons {
+            margin-top: 10px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .notification-btn {
+            padding: 5px 15px;
+            border: none;
+            border-radius: 15px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        .notification-btn.accept {
+            background: white;
+            color: #28a745;
+        }
+
+        .notification-btn.decline {
+            background: rgba(255, 255, 255, 0.3);
+            color: white;
+        }
+
+        .private-indicator {
+            background: #28a745;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 0.8em;
+            margin-left: 10px;
+        }
+
+        .back-button {
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 15px;
+            font-size: 0.9em;
+            cursor: pointer;
+            margin-bottom: 10px;
+        }
+
+        .back-button:hover {
+            background: #5a6268;
+        }
+
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <div id="setup" class="setup-container">
+            <div class="chat-header">
+                🗨️ Friend Chat App
+            </div>
+            <h2>Welcome to Friend Chat! 👋</h2>
+            <p>Enter your name to start chatting:</p>
+            <p style="font-size: 0.9em; color: #666; margin-bottom: 10px;">Choose a unique name - no duplicates allowed!</p>
+            <input type="text" id="usernameInput" class="name-input" placeholder="Your name..." maxlength="20">
+            <br>
+            <button id="startChat" class="start-button">Start Chatting! 🚀</button>
+        </div>
+
+        <div id="chatArea" class="hidden">
+            <div class="chat-header">
+                <div class="header-controls">
+                    <div>
+                        🗨️ Friend Chat App
+                        <div class="current-room" id="currentRoomDisplay"></div>
+                    </div>
+                    <button id="privateChatBtn" class="private-chat-btn">💬 Private</button>
+                </div>
+            </div>
+            <button id="backToRooms" class="back-button hidden">← Back to Rooms</button>
+            <div class="room-selector" id="roomSelector">
+                <button class="room-button active" data-room="general">🏠 General</button>
+                <button class="room-button" data-room="games">🎮 Games</button>
+                <button class="room-button" data-room="homework">📚 Homework</button>
+                <button class="room-button" data-room="sports">⚽ Sports</button>
+                <button class="room-button" data-room="music">🎵 Music</button>
+                <button class="room-button" data-room="movies">🎬 Movies</button>
+            </div>
+            <div id="messages" class="messages-container">
+                <div class="message received">
+                    <div>Welcome! Start chatting with your friends! 🎉</div>
+                    <div class="message-info">Chat Bot • just now</div>
+                </div>
+            </div>
+            
+            <div class="input-container">
+                <input type="text" id="messageInput" class="message-input" placeholder="Type your message..." maxlength="500">
+                <button id="sendButton" class="send-button">📨</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Private Chat Request Modal -->
+    <div id="privateRequestModal" class="modal hidden">
+        <div class="modal-content">
+            <h3>Start Private Chat 💬</h3>
+            <p>Who would you like to chat with privately?</p>
+            <input type="text" id="friendRequestInput" class="modal-input" placeholder="Friend's name..." maxlength="20">
+            <div class="modal-buttons">
+                <button id="sendRequest" class="modal-button primary">Send Request</button>
+                <button id="cancelRequest" class="modal-button secondary">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification area for incoming requests -->
+    <div id="notifications"></div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="chat.js"></script>
+</body>
+</html>
