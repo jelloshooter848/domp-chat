@@ -80,6 +80,12 @@ function startChat(isAutoLogin = false, isTemporary = false) {
     
     // Handle different button behaviors
     if (isTemporary) {
+        // Check if temporary sessions are allowed
+        if (typeof areTemporarySessionsAllowed === 'function' && !areTemporarySessionsAllowed()) {
+            alert('Temporary sessions are currently disabled. Please enter a PIN to login or register.');
+            return;
+        }
+        
         // "Skip PIN - Temporary Session" button - ignore PIN field completely
         if (isFirebaseEnabled) {
             checkUsernameAndJoin(isAutoLogin, '', true); // Empty PIN, force temporary
@@ -398,6 +404,10 @@ function completeSetup() {
     // Setup admin panel if admin functions are loaded
     if (typeof setupAdminPanel === 'function') {
         setupAdminPanel();
+    }
+    // Update temp chat button visibility for non-admin users
+    if (typeof updateTempChatButtonVisibility === 'function') {
+        updateTempChatButtonVisibility();
     }
     switchRoom('general');
     
@@ -1172,6 +1182,11 @@ window.addEventListener('load', function() {
                 // Prevent accidental app closure
             });
         }
+    }
+    
+    // Load temporary sessions setting on page load to control UI visibility
+    if (typeof loadTempSessionsSetting === 'function') {
+        loadTempSessionsSetting();
     }
     
     // Try to auto-login with saved username

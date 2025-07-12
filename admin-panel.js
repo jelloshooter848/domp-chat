@@ -89,6 +89,7 @@ function setupAdminPanel() {
         tempSessionsToggle.addEventListener('change', (e) => {
             allowTemporarySessions = e.target.checked;
             saveTempSessionsSetting();
+            updateTempChatButtonVisibility();
             console.log(`Temporary sessions ${allowTemporarySessions ? 'enabled' : 'disabled'}`);
         });
     }
@@ -532,11 +533,43 @@ function updateTempSessionsToggle() {
     if (toggle) {
         toggle.checked = allowTemporarySessions;
     }
+    updateTempChatButtonVisibility();
 }
 
 // Function for chat.js to check if temporary sessions are allowed
 function areTemporarySessionsAllowed() {
     return allowTemporarySessions;
+}
+
+// Function to update the temp chat button visibility and PIN description
+function updateTempChatButtonVisibility() {
+    const tempChatBtn = document.getElementById('tempChat');
+    const pinDescription = document.getElementById('pinDescription');
+    const buttonSpacer = document.getElementById('buttonSpacer');
+    
+    if (tempChatBtn) {
+        if (allowTemporarySessions) {
+            tempChatBtn.style.display = '';
+        } else {
+            tempChatBtn.style.display = 'none';
+        }
+    }
+    
+    if (pinDescription) {
+        if (allowTemporarySessions) {
+            pinDescription.style.display = '';
+        } else {
+            pinDescription.style.display = 'none';
+        }
+    }
+    
+    if (buttonSpacer) {
+        if (allowTemporarySessions) {
+            buttonSpacer.style.display = 'none';
+        } else {
+            buttonSpacer.style.display = '';
+        }
+    }
 }
 
 // Utility functions for formatting

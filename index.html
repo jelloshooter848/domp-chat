@@ -492,7 +492,7 @@
             border-radius: 25px;
             font-size: 16px;
             cursor: pointer;
-            margin-top: 15px;
+            margin-top: 25px;
         }
 
         .start-button:hover {
@@ -1346,10 +1346,12 @@
             <p style="font-size: 0.9em; color: #666; margin: 15px 0 5px 0;">Optional PIN (4-6 digits to permanently claim this name):</p>
             <input type="text" id="pinInput" class="name-input" placeholder="PIN (optional)" maxlength="6" pattern="[0-9]*" inputmode="numeric">
             
-            <p style="font-size: 0.8em; color: #888; margin: 5px 0 15px 0;">
+            <p id="pinDescription" style="font-size: 0.8em; color: #888; margin: 5px 0 15px 0;">
                 <strong>With PIN:</strong> Keep your name forever on any device<br>
                 <strong>Without PIN:</strong> Temporary session, name released when you leave
             </p>
+            
+            <div id="buttonSpacer" style="height: 15px; display: none;"></div>
             
             <button id="startChat" class="start-button">Start Chatting! 🚀</button>
             <button id="tempChat" class="temp-button">Skip PIN - Temporary Session</button>
