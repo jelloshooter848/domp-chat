@@ -111,10 +111,13 @@ function startChat() {
         
         document.getElementById('messageInput').focus();
         
+        // Initialize online users list
         if (isFirebaseEnabled) {
             showNotification(`Connected to live chat! 🌐`, 'success');
+            // Firebase listener will update the list automatically
         } else {
             showNotification(`Running in local mode 💻`, 'info');
+            updateOnlineUsersList({}); // Initialize local mode display
         }
     }
 }
@@ -150,6 +153,11 @@ function setupFirebaseListeners() {
         if (request && request.from !== username) {
             showFirebaseRequestNotification(request, snapshot.key);
         }
+    });
+    
+    // Listen for online users changes
+    database.ref('users').on('value', (snapshot) => {
+        updateOnlineUsersList(snapshot.val() || {});
     });
 }
 
@@ -356,6 +364,78 @@ function setupPrivateChat() {
             document.getElementById('sendRequest').click();
         }
     });
+    
+    // Setup online users toggle for all devices
+    const onlineToggle = document.getElementById('onlineToggle');
+    const onlineUsers = document.getElementById('onlineUsers');
+    const closeOnline = document.getElementById('closeOnline');
+    
+    if (onlineToggle && onlineUsers && closeOnline) {
+        // Initialize as visible on desktop, hidden on mobile
+        if (window.innerWidth > 768) {
+            onlineUsers.classList.remove('hidden');
+        } else {
+            onlineUsers.classList.add('hidden');
+        }
+        
+        onlineToggle.addEventListener('click', () => {
+            if (window.innerWidth <= 768) {
+                // Mobile behavior - slide in/out
+                if (onlineUsers.classList.contains('hidden')) {
+                    onlineUsers.classList.remove('hidden');
+                    onlineUsers.classList.add('show');
+                } else {
+                    onlineUsers.classList.remove('show');
+                    setTimeout(() => {
+                        onlineUsers.classList.add('hidden');
+                    }, 300);
+                }
+            } else {
+                // Desktop behavior - show/hide
+                onlineUsers.classList.toggle('hidden');
+            }
+        });
+        
+        closeOnline.addEventListener('click', () => {
+            if (window.innerWidth <= 768) {
+                onlineUsers.classList.remove('show');
+                setTimeout(() => {
+                    onlineUsers.classList.add('hidden');
+                }, 300);
+            } else {
+                onlineUsers.classList.add('hidden');
+            }
+        });
+        
+        // Close when clicking outside (on mobile)
+        document.addEventListener('click', (e) => {
+            if (window.innerWidth <= 768 && 
+                !onlineUsers.contains(e.target) && 
+                !onlineToggle.contains(e.target) && 
+                onlineUsers.classList.contains('show')) {
+                onlineUsers.classList.remove('show');
+                setTimeout(() => {
+                    onlineUsers.classList.add('hidden');
+                }, 300);
+            }
+        });
+        
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            if (window.innerWidth > 768) {
+                // Switch to desktop mode
+                onlineUsers.classList.remove('show');
+                if (!onlineUsers.classList.contains('hidden')) {
+                    onlineUsers.style.display = 'flex';
+                }
+            } else {
+                // Switch to mobile mode
+                if (!onlineUsers.classList.contains('hidden')) {
+                    onlineUsers.classList.remove('show');
+                }
+            }
+        });
+    }
 }
 
 function sendPrivateRequest(friendName) {
@@ -496,6 +576,67 @@ function showNotification(message, type = 'info') {
     setTimeout(() => {
         notification.remove();
     }, 4000);
+}
+
+function updateOnlineUsersList(users) {
+    const onlineUsersList = document.getElementById('onlineUsersList');
+    const onlineCount = document.getElementById('onlineCount');
+    const mobileOnlineCount = document.getElementById('mobileOnlineCount');
+    
+    if (!onlineUsersList || !onlineCount) return;
+    
+    const userArray = Object.values(users);
+    const sortedUsers = userArray.sort((a, b) => a.username.localeCompare(b.username));
+    
+    onlineCount.textContent = `(${userArray.length})`;
+    if (mobileOnlineCount) {
+        mobileOnlineCount.textContent = userArray.length;
+    }
+    
+    if (isFirebaseEnabled) {
+        onlineUsersList.innerHTML = '';
+        
+        if (userArray.length === 0) {
+            onlineUsersList.innerHTML = `
+                <div class="online-user">
+                    <div class="online-indicator" style="background: #6c757d;"></div>
+                    <div class="online-username">No one online</div>
+                </div>
+            `;
+        } else {
+            sortedUsers.forEach(user => {
+                const userDiv = document.createElement('div');
+                userDiv.className = 'online-user';
+                
+                const isCurrentUser = user.username === username;
+                const usernameDisplay = isCurrentUser ? `${user.username} (you)` : user.username;
+                
+                userDiv.innerHTML = `
+                    <div class="online-indicator"></div>
+                    <div class="online-username" title="${user.username}">${usernameDisplay}</div>
+                `;
+                
+                if (isCurrentUser) {
+                    userDiv.style.fontWeight = 'bold';
+                    userDiv.style.color = '#4a90e2';
+                }
+                
+                onlineUsersList.appendChild(userDiv);
+            });
+        }
+    } else {
+        // Local mode - just show current user
+        onlineUsersList.innerHTML = `
+            <div class="online-user">
+                <div class="online-indicator"></div>
+                <div class="online-username">${username || 'You'} (local)</div>
+            </div>
+        `;
+        onlineCount.textContent = '(1)';
+        if (mobileOnlineCount) {
+            mobileOnlineCount.textContent = '1';
+        }
+    }
 }
 
 function loadCurrentUsernames() {

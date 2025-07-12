@@ -40,6 +40,143 @@
             flex-direction: column;
             overflow: hidden;
         }
+        
+        .chat-main {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+        
+        .chat-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        .online-users {
+            width: 150px;
+            background: #f1f3f4;
+            border-left: 1px solid #e9ecef;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        .online-users.hidden {
+            display: none;
+        }
+        
+        @media (max-width: 768px) {
+            .online-users {
+                position: absolute;
+                right: 0;
+                top: 0;
+                bottom: 0;
+                width: 200px;
+                z-index: 100;
+                box-shadow: -2px 0 8px rgba(0,0,0,0.1);
+                transform: translateX(100%);
+                transition: transform 0.3s ease;
+                display: flex;
+            }
+            
+            .online-users.show {
+                transform: translateX(0);
+            }
+            
+            .online-users.hidden {
+                display: none;
+            }
+            
+            .chat-main {
+                position: relative;
+            }
+        }
+        
+        .online-users-header {
+            background: #495057;
+            color: white;
+            padding: 10px;
+            font-size: 0.9em;
+            font-weight: bold;
+            text-align: center;
+            flex-shrink: 0;
+        }
+        
+        .online-users-list {
+            flex: 1;
+            padding: 10px;
+            overflow-y: auto;
+        }
+        
+        .online-user {
+            display: flex;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #e9ecef;
+            font-size: 0.85em;
+        }
+        
+        .online-user:last-child {
+            border-bottom: none;
+        }
+        
+        .online-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #28a745;
+            margin-right: 8px;
+            flex-shrink: 0;
+        }
+        
+        .online-username {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        .online-count {
+            color: #6c757d;
+            font-size: 0.8em;
+        }
+        
+        .online-toggle {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            cursor: pointer;
+            display: inline-block;
+        }
+        
+        .online-toggle:hover {
+            background: #218838;
+        }
+        
+        .close-online {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #6c757d;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+            font-size: 16px;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .close-online {
+            display: flex;
+        }
 
         .chat-header {
             background: #4a90e2;
@@ -384,28 +521,49 @@
                         🗨️ Friend Chat App
                         <div class="current-room" id="currentRoomDisplay"></div>
                     </div>
-                    <button id="privateChatBtn" class="private-chat-btn">💬 Private</button>
-                </div>
-            </div>
-            <button id="backToRooms" class="back-button hidden">← Back to Rooms</button>
-            <div class="room-selector" id="roomSelector">
-                <button class="room-button active" data-room="general">🏠 General</button>
-                <button class="room-button" data-room="games">🎮 Games</button>
-                <button class="room-button" data-room="homework">📚 Homework</button>
-                <button class="room-button" data-room="sports">⚽ Sports</button>
-                <button class="room-button" data-room="music">🎵 Music</button>
-                <button class="room-button" data-room="movies">🎬 Movies</button>
-            </div>
-            <div id="messages" class="messages-container">
-                <div class="message received">
-                    <div>Welcome! Start chatting with your friends! 🎉</div>
-                    <div class="message-info">Chat Bot • just now</div>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <button id="onlineToggle" class="online-toggle">👥 <span id="mobileOnlineCount">0</span></button>
+                        <button id="privateChatBtn" class="private-chat-btn">💬 Private</button>
+                    </div>
                 </div>
             </div>
             
-            <div class="input-container">
-                <input type="text" id="messageInput" class="message-input" placeholder="Type your message..." maxlength="500">
-                <button id="sendButton" class="send-button">📨</button>
+            <div class="chat-main">
+                <div class="chat-content">
+                    <button id="backToRooms" class="back-button hidden">← Back to Rooms</button>
+                    <div class="room-selector" id="roomSelector">
+                        <button class="room-button active" data-room="general">🏠 General</button>
+                        <button class="room-button" data-room="games">🎮 Games</button>
+                        <button class="room-button" data-room="homework">📚 Homework</button>
+                        <button class="room-button" data-room="sports">⚽ Sports</button>
+                        <button class="room-button" data-room="music">🎵 Music</button>
+                        <button class="room-button" data-room="movies">🎬 Movies</button>
+                    </div>
+                    <div id="messages" class="messages-container">
+                        <div class="message received">
+                            <div>Welcome! Start chatting with your friends! 🎉</div>
+                            <div class="message-info">Chat Bot • just now</div>
+                        </div>
+                    </div>
+                    
+                    <div class="input-container">
+                        <input type="text" id="messageInput" class="message-input" placeholder="Type your message..." maxlength="500">
+                        <button id="sendButton" class="send-button">📨</button>
+                    </div>
+                </div>
+                
+                <div class="online-users" id="onlineUsers">
+                    <button class="close-online" id="closeOnline">×</button>
+                    <div class="online-users-header">
+                        👥 Online <span id="onlineCount" class="online-count">(0)</span>
+                    </div>
+                    <div class="online-users-list" id="onlineUsersList">
+                        <div class="online-user">
+                            <div class="online-indicator"></div>
+                            <div class="online-username">Loading...</div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
