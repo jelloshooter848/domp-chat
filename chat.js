@@ -48,6 +48,10 @@ let isAdmin = false;
 const ADMIN_USERNAME = 'admin';
 const ADMIN_PIN = '1234';
 
+// Session management
+const SESSION_EXPIRY_DAYS = 7;
+let currentSessionToken = null;
+
 function startChat(isAutoLogin = false, isTemporary = false) {
     const usernameInput = document.getElementById('usernameInput');
     const pinInput = document.getElementById('pinInput');
@@ -86,6 +90,56 @@ function checkAdminCredentials(username, pin) {
     return username.toLowerCase() === ADMIN_USERNAME && pin === ADMIN_PIN;
 }
 
+// Session token management
+function generateSessionToken() {
+    return 'session_' + Math.random().toString(36).substring(2) + Date.now().toString(36);
+}
+
+function generateAndStoreSessionToken() {
+    currentSessionToken = generateSessionToken();
+    const sessionData = {
+        token: currentSessionToken,
+        username: username,
+        created: Date.now(),
+        isAdmin: isAdmin
+    };
+    
+    try {
+        localStorage.setItem('chatSession', JSON.stringify(sessionData));
+        console.log('Session token generated and stored');
+    } catch (e) {
+        console.log('Cannot store session token');
+    }
+}
+
+function getStoredSession() {
+    try {
+        const stored = localStorage.getItem('chatSession');
+        if (stored) {
+            const sessionData = JSON.parse(stored);
+            const expiryTime = sessionData.created + (SESSION_EXPIRY_DAYS * 24 * 60 * 60 * 1000);
+            
+            if (Date.now() < expiryTime) {
+                return sessionData;
+            } else {
+                // Session expired, remove it
+                localStorage.removeItem('chatSession');
+                console.log('Session expired and removed');
+            }
+        }
+    } catch (e) {
+        console.log('Cannot load session token');
+        localStorage.removeItem('chatSession');
+    }
+    return null;
+}
+
+function clearSession() {
+    currentSessionToken = null;
+    localStorage.removeItem('chatSession');
+    console.log('Session cleared');
+}
+
 function startTempChat() {
     startChat(false, true);
 }
@@ -105,6 +159,7 @@ function localUsernameCheck(isAutoLogin = false, pin = '') {
                 if (checkAdminCredentials(username, pin)) {
                     isAdmin = true;
                 }
+                generateAndStoreSessionToken();
                 completeSetup();
                 return;
             } else {
@@ -123,6 +178,7 @@ function localUsernameCheck(isAutoLogin = false, pin = '') {
                     isAdmin = true;
                 }
                 registerUser(username, pin);
+                generateAndStoreSessionToken();
                 completeSetup();
                 return;
             } else {
@@ -173,6 +229,7 @@ function checkUsernameAndJoin(isAutoLogin = false, pin = '') {
                     if (checkAdminCredentials(username, pin)) {
                         isAdmin = true;
                     }
+                    generateAndStoreSessionToken();
                     addUserToFirebase();
                     return;
                 } else {
@@ -191,6 +248,7 @@ function checkUsernameAndJoin(isAutoLogin = false, pin = '') {
                         isAdmin = true;
                     }
                     registerFirebaseUser(username, pin);
+                    generateAndStoreSessionToken();
                     addUserToFirebase();
                     return;
                 } else {
@@ -628,8 +686,9 @@ function setupPrivateChat() {
 
 function logout() {
     if (confirm('Are you sure you want to logout? You\'ll need to enter your username again.')) {
-        // Clear saved username
+        // Clear saved username and session
         localStorage.removeItem('chatUsername');
+        clearSession();
         
         // Release current session
         releaseUsername();
@@ -638,6 +697,7 @@ function logout() {
         document.getElementById('chatArea').classList.add('hidden');
         document.getElementById('setup').classList.remove('hidden');
         document.getElementById('usernameInput').value = '';
+        document.getElementById('pinInput').value = '';
         document.getElementById('usernameInput').focus();
         
         // Reset variables
@@ -645,6 +705,9 @@ function logout() {
         currentRoom = 'general';
         isPrivateChat = false;
         privateChatFriend = '';
+        isAdmin = false;
+        isTemporarySession = false;
+        currentSessionToken = null;
         
         showNotification('Logged out successfully', 'info');
     }
@@ -1040,15 +1103,50 @@ window.addEventListener('load', function() {
 });
 
 function tryAutoLogin() {
+    const storedSession = getStoredSession();
     const savedUsername = localStorage.getItem('chatUsername');
-    if (savedUsername) {
-        document.getElementById('usernameInput').value = savedUsername;
-        // Show loading message
-        showNotification('Reconnecting as ' + savedUsername + '...', 'info');
-        // Attempt to login automatically
+    
+    if (storedSession) {
+        // Valid session token exists - auto-login with session
+        username = storedSession.username;
+        isAdmin = storedSession.isAdmin || false;
+        currentSessionToken = storedSession.token;
+        
+        document.getElementById('usernameInput').value = username;
+        showNotification('Welcome back, ' + username + '! 🔐', 'success');
+        
         setTimeout(() => {
-            startChat(true); // true indicates auto-login attempt
+            // Skip PIN verification, use session token
+            if (isFirebaseEnabled) {
+                addUserToFirebase();
+            } else {
+                loadCurrentUsernames();
+                if (!currentUsernames.includes(username.toLowerCase())) {
+                    currentUsernames.push(username.toLowerCase());
+                    saveCurrentUsernames();
+                }
+                completeSetup();
+            }
         }, 500);
+        
+    } else if (savedUsername) {
+        // No valid session, but username is saved
+        const registeredUsers = getRegisteredUsers();
+        const isRegistered = registeredUsers[savedUsername.toLowerCase()];
+        
+        document.getElementById('usernameInput').value = savedUsername;
+        
+        if (isRegistered) {
+            // Registered user - show PIN prompt
+            showNotification('Welcome back! Please enter your PIN to continue. 🔐', 'info');
+            document.getElementById('pinInput').focus();
+        } else {
+            // Temporary user - attempt auto-login
+            showNotification('Reconnecting as ' + savedUsername + '...', 'info');
+            setTimeout(() => {
+                startChat(true); // true indicates auto-login attempt
+            }, 500);
+        }
     }
 }
 
