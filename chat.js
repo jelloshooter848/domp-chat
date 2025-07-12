@@ -756,6 +756,63 @@ window.addEventListener('load', function() {
     
     // Try to auto-login with saved username
     tryAutoLogin();
+    
+    // Add PWA install prompt handling
+    let deferredPrompt;
+    
+    window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+        
+        // Show install button after a delay if not already installed
+        setTimeout(() => {
+            if (deferredPrompt && !window.matchMedia('(display-mode: standalone)').matches) {
+                showInstallPrompt();
+            }
+        }, 30000); // Show after 30 seconds
+    });
+    
+    // Handle successful installation
+    window.addEventListener('appinstalled', () => {
+        showNotification('Friend Chat installed! 📱', 'success');
+        deferredPrompt = null;
+    });
+    
+    function showInstallPrompt() {
+        if (deferredPrompt) {
+            const notification = document.createElement('div');
+            notification.className = 'notification install-prompt';
+            notification.innerHTML = `
+                <div><strong>Install Friend Chat</strong></div>
+                <div style="font-size: 0.9em; margin: 5px 0;">Add to your home screen for a better experience!</div>
+                <div class="notification-buttons">
+                    <button class="notification-btn accept" onclick="installApp()">Install 📱</button>
+                    <button class="notification-btn decline" onclick="dismissInstall()">Not Now</button>
+                </div>
+            `;
+            document.getElementById('notifications').appendChild(notification);
+            
+            window.installApp = () => {
+                deferredPrompt.prompt();
+                deferredPrompt.userChoice.then((result) => {
+                    deferredPrompt = null;
+                    notification.remove();
+                });
+            };
+            
+            window.dismissInstall = () => {
+                notification.remove();
+                deferredPrompt = null;
+            };
+            
+            // Auto-dismiss after 20 seconds
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.remove();
+                }
+            }, 20000);
+        }
+    }
 });
 
 function tryAutoLogin() {
