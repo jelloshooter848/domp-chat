@@ -163,6 +163,7 @@ function setupFirebaseListeners() {
                 displayMessage(message, message.username === username);
             }
         });
+        
     });
     
     // Listen for private messages
@@ -403,12 +404,8 @@ function setupPrivateChat() {
     const closeOnline = document.getElementById('closeOnline');
     
     if (onlineToggle && onlineUsers && closeOnline) {
-        // Initialize as visible on desktop, hidden on mobile
-        if (window.innerWidth > 768) {
-            onlineUsers.classList.remove('hidden');
-        } else {
-            onlineUsers.classList.add('hidden');
-        }
+        // Initialize as hidden on all devices
+        onlineUsers.classList.add('hidden');
         
         onlineToggle.addEventListener('click', () => {
             if (window.innerWidth <= 768) {
@@ -774,12 +771,8 @@ function tryAutoLogin() {
     }
 }
 
-// Release username when user leaves
+// Release username when user leaves (using modern approach)
 window.addEventListener('beforeunload', function() {
-    releaseUsername();
-});
-
-window.addEventListener('unload', function() {
     releaseUsername();
 });
 
@@ -875,3 +868,5 @@ function setupEmojiPicker() {
         emojiPicker.classList.add('hidden');
     }
 }
+
+
