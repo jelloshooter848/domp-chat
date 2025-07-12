@@ -1407,9 +1407,16 @@ function setupAdminPanel() {
         refreshStatsBtn.addEventListener('click', loadUsageStatistics);
     }
     
+    // Setup refresh users button
+    const refreshUsersBtn = document.getElementById('refreshUsers');
+    if (refreshUsersBtn) {
+        refreshUsersBtn.addEventListener('click', loadUserManagement);
+    }
+    
     // Load initial statistics when admin panel opens
     if (isAdmin) {
         loadUsageStatistics();
+        loadUserManagement();
     }
 }
 
@@ -1524,6 +1531,130 @@ function showUsageError() {
     
     const roomStatsContainer = document.getElementById('roomStats');
     roomStatsContainer.innerHTML = '<div style="color: #dc3545; text-align: center;">Failed to load statistics</div>';
+}
+
+// User management functions
+function loadUserManagement() {
+    if (!isFirebaseEnabled || !isAdmin) return;
+    
+    console.log('Loading user management data...');
+    
+    Promise.all([
+        database.ref('registeredUsers').once('value'),
+        database.ref('users').once('value')
+    ]).then(([registeredSnapshot, onlineSnapshot]) => {
+        
+        const registeredUsers = registeredSnapshot.val() || {};
+        const onlineUsers = onlineSnapshot.val() || {};
+        
+        // Process user data
+        const userData = processUserData(registeredUsers, onlineUsers);
+        
+        // Update UI
+        updateUserManagementUI(userData);
+        
+    }).catch(error => {
+        console.error('Error loading user management data:', error);
+        showUserManagementError();
+    });
+}
+
+function processUserData(registeredUsers, onlineUsers) {
+    const onlineUsernames = Object.values(onlineUsers).map(user => user.username.toLowerCase());
+    const now = Date.now();
+    const sevenDaysAgo = now - (7 * 24 * 60 * 60 * 1000);
+    
+    let registeredOnlineCount = 0;
+    let recentRegistrations = 0;
+    const userList = [];
+    
+    // Process registered users (excluding admin)
+    Object.entries(registeredUsers).forEach(([username, userData]) => {
+        if (username === ADMIN_USERNAME.toLowerCase()) return; // Skip admin
+        
+        const isOnline = onlineUsernames.includes(username);
+        if (isOnline) registeredOnlineCount++;
+        
+        const registrationDate = userData.registeredDate || 0;
+        if (registrationDate > sevenDaysAgo) recentRegistrations++;
+        
+        userList.push({
+            username: userData.username,
+            registrationDate: registrationDate,
+            isOnline: isOnline,
+            lastSeen: isOnline ? 'Online now' : formatLastSeen(registrationDate)
+        });
+    });
+    
+    // Sort by registration date (newest first)
+    userList.sort((a, b) => b.registrationDate - a.registrationDate);
+    
+    return {
+        totalRegistered: userList.length,
+        registeredOnline: registeredOnlineCount,
+        recentRegistrations: recentRegistrations,
+        userList: userList
+    };
+}
+
+function updateUserManagementUI(userData) {
+    // Update summary statistics
+    document.getElementById('totalRegistered').textContent = userData.totalRegistered;
+    document.getElementById('registeredOnline').textContent = userData.registeredOnline;
+    document.getElementById('recentRegistrations').textContent = userData.recentRegistrations;
+    
+    // Update users table
+    const usersTable = document.getElementById('usersTable');
+    usersTable.innerHTML = '';
+    
+    if (userData.userList.length === 0) {
+        usersTable.innerHTML = '<div class="users-table-loading">No registered users found</div>';
+        return;
+    }
+    
+    userData.userList.forEach(user => {
+        const userRow = document.createElement('div');
+        userRow.className = 'user-row';
+        
+        const registrationDate = new Date(user.registrationDate);
+        const formattedDate = registrationDate.toLocaleDateString();
+        
+        userRow.innerHTML = `
+            <div class="user-info">
+                <div class="user-status ${user.isOnline ? 'online' : 'offline'}"></div>
+                <div class="user-name">${user.username}</div>
+            </div>
+            <div class="user-details">
+                <div class="user-registered">Registered: ${formattedDate}</div>
+                <div class="user-last-seen">${user.lastSeen}</div>
+            </div>
+        `;
+        
+        usersTable.appendChild(userRow);
+    });
+}
+
+function showUserManagementError() {
+    document.getElementById('totalRegistered').textContent = 'Error';
+    document.getElementById('registeredOnline').textContent = 'Error';
+    document.getElementById('recentRegistrations').textContent = 'Error';
+    
+    const usersTable = document.getElementById('usersTable');
+    usersTable.innerHTML = '<div style="color: #dc3545; text-align: center; padding: 20px;">Failed to load user data</div>';
+}
+
+function formatLastSeen(timestamp) {
+    if (!timestamp) return 'Unknown';
+    
+    const now = Date.now();
+    const timeDiff = now - timestamp;
+    const days = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
+    
+    if (days === 0) return 'Today';
+    if (days === 1) return 'Yesterday';
+    if (days < 7) return `${days} days ago`;
+    if (days < 30) return `${Math.floor(days / 7)} weeks ago`;
+    return `${Math.floor(days / 30)} months ago`;
 }
 
 

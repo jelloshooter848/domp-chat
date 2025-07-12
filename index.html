@@ -764,6 +764,144 @@
             font-size: 0.8em;
             color: #6c757d;
         }
+        
+        .user-summary {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        
+        .summary-stats {
+            display: flex;
+            gap: 25px;
+            flex-wrap: wrap;
+        }
+        
+        .summary-item {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        
+        .summary-label {
+            font-size: 0.8em;
+            color: #666;
+        }
+        
+        .summary-value {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #4a90e2;
+        }
+        
+        .users-table-container {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+        }
+        
+        .users-table-header h5 {
+            color: #4a90e2;
+            margin-bottom: 15px;
+            font-size: 1em;
+        }
+        
+        .users-table {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .users-table-loading {
+            text-align: center;
+            color: #666;
+            padding: 20px;
+        }
+        
+        .user-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            background: white;
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
+            transition: box-shadow 0.2s;
+        }
+        
+        .user-row:hover {
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .user-status {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        
+        .user-status.online {
+            background: #28a745;
+        }
+        
+        .user-status.offline {
+            background: #6c757d;
+        }
+        
+        .user-name {
+            font-weight: 500;
+            color: #333;
+        }
+        
+        .user-details {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 2px;
+        }
+        
+        .user-registered {
+            font-size: 0.8em;
+            color: #666;
+        }
+        
+        .user-last-seen {
+            font-size: 0.75em;
+            color: #999;
+        }
+        
+        @media (max-width: 600px) {
+            .summary-stats {
+                gap: 15px;
+            }
+            
+            .user-summary {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .user-row {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 8px;
+            }
+            
+            .user-details {
+                align-items: flex-start;
+            }
+        }
 
         .modal {
             position: fixed;
@@ -1189,10 +1327,33 @@
                 </div>
                 
                 <div id="usersTab" class="admin-tab-content hidden">
-                    <h4>User Management</h4>
-                    <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; text-align: center; color: #666;">
-                        🚧 Under Construction 🚧<br>
-                        Coming soon: View online users, manage registrations, ban/unban users
+                    <h4>👥 User Management</h4>
+                    
+                    <div class="user-summary">
+                        <div class="summary-stats">
+                            <div class="summary-item">
+                                <span class="summary-label">Total Registered:</span>
+                                <span class="summary-value" id="totalRegistered">Loading...</span>
+                            </div>
+                            <div class="summary-item">
+                                <span class="summary-label">Currently Online:</span>
+                                <span class="summary-value" id="registeredOnline">Loading...</span>
+                            </div>
+                            <div class="summary-item">
+                                <span class="summary-label">Recent (7 days):</span>
+                                <span class="summary-value" id="recentRegistrations">Loading...</span>
+                            </div>
+                        </div>
+                        <button id="refreshUsers" class="stat-refresh-btn">🔄 Refresh Users</button>
+                    </div>
+                    
+                    <div class="users-table-container">
+                        <div class="users-table-header">
+                            <h5>📋 Registered Users</h5>
+                        </div>
+                        <div class="users-table" id="usersTable">
+                            <div class="users-table-loading">Loading users...</div>
+                        </div>
                     </div>
                 </div>
                 
