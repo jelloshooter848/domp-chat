@@ -648,6 +648,115 @@
             color: #4a90e2;
             margin-bottom: 15px;
         }
+        
+        .usage-stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+        
+        .stat-card {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 12px;
+            padding: 15px;
+            text-align: center;
+            transition: box-shadow 0.2s;
+        }
+        
+        .stat-card:hover {
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        
+        .stat-icon {
+            font-size: 24px;
+            margin-bottom: 8px;
+        }
+        
+        .stat-label {
+            font-size: 0.8em;
+            color: #666;
+            margin-bottom: 5px;
+        }
+        
+        .stat-value {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #4a90e2;
+            margin-bottom: 2px;
+        }
+        
+        .stat-limit {
+            font-size: 0.7em;
+            color: #999;
+        }
+        
+        .room-stats {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .room-stats h5 {
+            color: #4a90e2;
+            margin-bottom: 15px;
+            font-size: 1em;
+        }
+        
+        .room-stats-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .room-stat-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            background: white;
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
+        }
+        
+        .room-name {
+            font-weight: 500;
+        }
+        
+        .room-count {
+            color: #6c757d;
+            font-size: 0.9em;
+        }
+        
+        .admin-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 15px;
+            border-top: 1px solid #e9ecef;
+        }
+        
+        .stat-refresh-btn {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 0.9em;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .stat-refresh-btn:hover {
+            background: #218838;
+        }
+        
+        .last-update {
+            font-size: 0.8em;
+            color: #6c757d;
+        }
 
         .modal {
             position: fixed;
@@ -1022,13 +1131,56 @@
         <div class="modal-content" style="max-width: 600px; max-height: 80vh; overflow-y: auto;">
             <h3>🛠️ Admin Panel</h3>
             <div class="admin-tabs">
-                <button class="admin-tab active" data-tab="users">👥 Users</button>
+                <button class="admin-tab active" data-tab="usage">📊 Usage Stats</button>
+                <button class="admin-tab" data-tab="users">👥 Users</button>
                 <button class="admin-tab" data-tab="messages">💬 Messages</button>
                 <button class="admin-tab" data-tab="settings">⚙️ Settings</button>
             </div>
             
             <div id="adminTabContent">
-                <div id="usersTab" class="admin-tab-content">
+                <div id="usageTab" class="admin-tab-content">
+                    <h4>📊 Database Usage Statistics</h4>
+                    <div class="usage-stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-icon">💾</div>
+                            <div class="stat-label">Storage Used</div>
+                            <div class="stat-value" id="storageUsed">Loading...</div>
+                            <div class="stat-limit">/ 1 GB limit</div>
+                        </div>
+                        
+                        <div class="stat-card">
+                            <div class="stat-icon">👥</div>
+                            <div class="stat-label">Registered Users</div>
+                            <div class="stat-value" id="registeredCount">Loading...</div>
+                        </div>
+                        
+                        <div class="stat-card">
+                            <div class="stat-icon">🟢</div>
+                            <div class="stat-label">Online Now</div>
+                            <div class="stat-value" id="onlineCount">Loading...</div>
+                        </div>
+                        
+                        <div class="stat-card">
+                            <div class="stat-icon">💬</div>
+                            <div class="stat-label">Total Messages</div>
+                            <div class="stat-value" id="messageCount">Loading...</div>
+                        </div>
+                    </div>
+                    
+                    <div class="room-stats">
+                        <h5>📊 Messages by Room</h5>
+                        <div id="roomStats" class="room-stats-list">
+                            Loading room statistics...
+                        </div>
+                    </div>
+                    
+                    <div class="admin-actions">
+                        <button id="refreshStats" class="stat-refresh-btn">🔄 Refresh Stats</button>
+                        <span class="last-update">Last updated: <span id="lastUpdate">Never</span></span>
+                    </div>
+                </div>
+                
+                <div id="usersTab" class="admin-tab-content hidden">
                     <h4>User Management</h4>
                     <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; text-align: center; color: #666;">
                         🚧 Under Construction 🚧<br>

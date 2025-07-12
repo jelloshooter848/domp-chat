@@ -1400,6 +1400,107 @@ function setupAdminPanel() {
             adminModal.classList.add('hidden');
         }
     });
+    
+    // Setup refresh stats button
+    const refreshStatsBtn = document.getElementById('refreshStats');
+    if (refreshStatsBtn) {
+        refreshStatsBtn.addEventListener('click', loadUsageStatistics);
+    }
+    
+    // Load initial statistics when admin panel opens
+    if (isAdmin) {
+        loadUsageStatistics();
+    }
+}
+
+// Admin usage statistics functions
+function loadUsageStatistics() {
+    if (!isFirebaseEnabled || !isAdmin) return;
+    
+    console.log('Loading usage statistics...');
+    
+    Promise.all([
+        // Get registered users count
+        database.ref('registeredUsers').once('value'),
+        // Get online users count  
+        database.ref('users').once('value'),
+        // Get messages from all rooms
+        database.ref('messages').once('value')
+    ]).then(([registeredSnapshot, usersSnapshot, messagesSnapshot]) => {
+        
+        const registeredUsers = registeredSnapshot.val() || {};
+        const onlineUsers = usersSnapshot.val() || {};
+        const allMessages = messagesSnapshot.val() || {};
+        
+        // Calculate statistics
+        const stats = {
+            registeredCount: Object.keys(registeredUsers).length,
+            onlineCount: Object.keys(onlineUsers).length,
+            messageCount: 0,
+            roomStats: {}
+        };
+        
+        // Count messages by room
+        Object.keys(rooms).forEach(roomName => {
+            const roomMessages = allMessages[roomName] || {};
+            const count = Object.keys(roomMessages).length;
+            stats.messageCount += count;
+            stats.roomStats[roomName] = count;
+        });
+        
+        // Estimate storage usage (rough calculation)
+        const dataString = JSON.stringify({
+            registeredUsers,
+            messages: allMessages
+        });
+        const storageBytes = new Blob([dataString]).size;
+        const storageKB = (storageBytes / 1024).toFixed(2);
+        
+        // Update UI
+        updateUsageStatisticsUI(stats, storageKB);
+        
+    }).catch(error => {
+        console.error('Error loading usage statistics:', error);
+        showUsageError();
+    });
+}
+
+function updateUsageStatisticsUI(stats, storageKB) {
+    // Update main statistics
+    document.getElementById('storageUsed').textContent = `${storageKB} KB`;
+    document.getElementById('registeredCount').textContent = stats.registeredCount;
+    document.getElementById('onlineCount').textContent = stats.onlineCount;
+    document.getElementById('messageCount').textContent = stats.messageCount;
+    
+    // Update room statistics
+    const roomStatsContainer = document.getElementById('roomStats');
+    roomStatsContainer.innerHTML = '';
+    
+    Object.keys(rooms).forEach(roomName => {
+        const count = stats.roomStats[roomName] || 0;
+        const roomItem = document.createElement('div');
+        roomItem.className = 'room-stat-item';
+        roomItem.innerHTML = `
+            <span class="room-name">${rooms[roomName]}</span>
+            <span class="room-count">${count} messages</span>
+        `;
+        roomStatsContainer.appendChild(roomItem);
+    });
+    
+    // Update last refresh time
+    const now = new Date();
+    const timeString = now.toLocaleTimeString();
+    document.getElementById('lastUpdate').textContent = timeString;
+}
+
+function showUsageError() {
+    document.getElementById('storageUsed').textContent = 'Error';
+    document.getElementById('registeredCount').textContent = 'Error';
+    document.getElementById('onlineCount').textContent = 'Error';
+    document.getElementById('messageCount').textContent = 'Error';
+    
+    const roomStatsContainer = document.getElementById('roomStats');
+    roomStatsContainer.innerHTML = '<div style="color: #dc3545; text-align: center;">Failed to load statistics</div>';
 }
 
 
