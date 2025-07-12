@@ -52,6 +52,14 @@ const ADMIN_PIN = '1234';
 const SESSION_EXPIRY_DAYS = 7;
 let currentSessionToken = null;
 
+// Firebase listener management
+let firebaseListeners = {
+    messageListeners: {},
+    privateMessageListener: null,
+    requestListener: null,
+    userListener: null
+};
+
 function startChat(isAutoLogin = false, isTemporary = false) {
     const usernameInput = document.getElementById('usernameInput');
     const pinInput = document.getElementById('pinInput');
@@ -363,22 +371,28 @@ function completeSetup() {
 function setupFirebaseListeners() {
     if (!isFirebaseEnabled) return;
     
+    // Clean up any existing listeners first
+    cleanupFirebaseListeners();
+    
     // Ensure admin is registered in Firebase
     ensureAdminRegistered();
     
     // Listen for new messages in all rooms
     Object.keys(rooms).forEach(roomName => {
-        database.ref(`messages/${roomName}`).on('child_added', (snapshot) => {
+        const messageRef = database.ref(`messages/${roomName}`);
+        const listener = messageRef.on('child_added', (snapshot) => {
             const message = snapshot.val();
             if (message && currentRoom === roomName && !isPrivateChat) {
                 displayMessage(message, message.username === username);
             }
         });
-        
+        // Store listener reference for cleanup
+        firebaseListeners.messageListeners[roomName] = { ref: messageRef, listener: listener };
     });
     
     // Listen for private messages
-    database.ref(`privateMessages/${username}`).on('child_added', (snapshot) => {
+    const privateRef = database.ref(`privateMessages/${username}`);
+    firebaseListeners.privateMessageListener = privateRef.on('child_added', (snapshot) => {
         const message = snapshot.val();
         if (message && isPrivateChat && privateChatFriend === message.from) {
             displayMessage({
@@ -390,7 +404,8 @@ function setupFirebaseListeners() {
     });
     
     // Listen for private chat requests
-    database.ref(`requests/${username}`).on('child_added', (snapshot) => {
+    const requestRef = database.ref(`requests/${username}`);
+    firebaseListeners.requestListener = requestRef.on('child_added', (snapshot) => {
         const request = snapshot.val();
         if (request && request.from !== username) {
             showFirebaseRequestNotification(request, snapshot.key);
@@ -398,9 +413,49 @@ function setupFirebaseListeners() {
     });
     
     // Listen for online users changes
-    database.ref('users').on('value', (snapshot) => {
+    const userRef = database.ref('users');
+    firebaseListeners.userListener = userRef.on('value', (snapshot) => {
         updateOnlineUsersList(snapshot.val() || {});
     });
+    
+    // Store references for cleanup
+    firebaseListeners.privateMessageRef = privateRef;
+    firebaseListeners.requestRef = requestRef;
+    firebaseListeners.userRef = userRef;
+}
+
+function cleanupFirebaseListeners() {
+    if (!isFirebaseEnabled) return;
+    
+    // Clean up message listeners for all rooms
+    Object.keys(firebaseListeners.messageListeners).forEach(roomName => {
+        const listener = firebaseListeners.messageListeners[roomName];
+        if (listener && listener.ref) {
+            listener.ref.off('child_added', listener.listener);
+        }
+    });
+    firebaseListeners.messageListeners = {};
+    
+    // Clean up private message listener
+    if (firebaseListeners.privateMessageRef && firebaseListeners.privateMessageListener) {
+        firebaseListeners.privateMessageRef.off('child_added', firebaseListeners.privateMessageListener);
+        firebaseListeners.privateMessageListener = null;
+        firebaseListeners.privateMessageRef = null;
+    }
+    
+    // Clean up request listener
+    if (firebaseListeners.requestRef && firebaseListeners.requestListener) {
+        firebaseListeners.requestRef.off('child_added', firebaseListeners.requestListener);
+        firebaseListeners.requestListener = null;
+        firebaseListeners.requestRef = null;
+    }
+    
+    // Clean up user listener
+    if (firebaseListeners.userRef && firebaseListeners.userListener) {
+        firebaseListeners.userRef.off('value', firebaseListeners.userListener);
+        firebaseListeners.userListener = null;
+        firebaseListeners.userRef = null;
+    }
 }
 
 function sendMessage() {
@@ -689,6 +744,9 @@ function logout() {
         // Clear saved username and session
         localStorage.removeItem('chatUsername');
         clearSession();
+        
+        // Clean up Firebase listeners
+        cleanupFirebaseListeners();
         
         // Release current session
         releaseUsername();
@@ -1152,6 +1210,7 @@ function tryAutoLogin() {
 
 // Release username when user leaves (using modern approach)
 window.addEventListener('beforeunload', function() {
+    cleanupFirebaseListeners();
     releaseUsername();
 });
 
@@ -1160,6 +1219,7 @@ document.addEventListener('visibilitychange', function() {
     if (document.hidden) {
         setTimeout(function() {
             if (document.hidden) {
+                cleanupFirebaseListeners();
                 releaseUsername();
             }
         }, 30000);
