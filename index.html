@@ -806,10 +806,32 @@
             padding: 20px;
         }
         
+        .users-table-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
         .users-table-header h5 {
             color: #4a90e2;
-            margin-bottom: 15px;
+            margin: 0;
             font-size: 1em;
+        }
+        
+        .sort-dropdown {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 6px 12px;
+            font-size: 0.85em;
+            color: #666;
+            cursor: pointer;
+        }
+        
+        .sort-dropdown:focus {
+            outline: none;
+            border-color: #4a90e2;
         }
         
         .users-table {
@@ -1350,6 +1372,10 @@
                     <div class="users-table-container">
                         <div class="users-table-header">
                             <h5>📋 Registered Users</h5>
+                            <select id="userSortSelect" class="sort-dropdown">
+                                <option value="activity">Recent Activity</option>
+                                <option value="alphabetical">Alphabetical</option>
+                            </select>
                         </div>
                         <div class="users-table" id="usersTable">
                             <div class="users-table-loading">Loading users...</div>

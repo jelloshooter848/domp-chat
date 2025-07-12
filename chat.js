@@ -48,6 +48,9 @@ let isAdmin = false;
 const ADMIN_USERNAME = 'admin';
 const ADMIN_PIN = '1234';
 
+// Admin panel sorting mode
+let userSortMode = 'activity'; // 'activity' or 'alphabetical'
+
 // Session management
 const SESSION_EXPIRY_DAYS = 7;
 let currentSessionToken = null;
@@ -1445,6 +1448,15 @@ function setupAdminPanel() {
         refreshUsersBtn.addEventListener('click', loadUserManagement);
     }
     
+    // Setup sort dropdown
+    const sortDropdown = document.getElementById('userSortSelect');
+    if (sortDropdown) {
+        sortDropdown.addEventListener('change', (e) => {
+            userSortMode = e.target.value;
+            loadUserManagement(); // Reload with new sorting
+        });
+    }
+    
     // Load initial statistics when admin panel opens
     if (isAdmin) {
         loadUsageStatistics();
@@ -1610,28 +1622,43 @@ function processUserData(registeredUsers, onlineUsers) {
         const registrationDate = userData.registeredDate || 0;
         if (registrationDate > sevenDaysAgo) recentRegistrations++;
         
-        // Determine last seen display text
+        // Determine last seen display text and timestamp for sorting
         let lastSeenText;
+        let lastSeenTimestamp;
+        
         if (isOnline) {
             lastSeenText = 'Online now';
+            lastSeenTimestamp = Date.now(); // Current time for online users (highest priority)
         } else {
             // Use lastSeen data if available, otherwise fall back to registration date
-            const timestampToUse = userData.lastSeen || registrationDate;
-            
-            
-            lastSeenText = formatLastSeen(timestampToUse);
+            lastSeenTimestamp = userData.lastSeen || registrationDate;
+            lastSeenText = formatLastSeen(lastSeenTimestamp);
         }
         
         userList.push({
             username: userData.username,
             registrationDate: registrationDate,
             isOnline: isOnline,
-            lastSeen: lastSeenText
+            lastSeen: lastSeenText,
+            lastSeenTimestamp: lastSeenTimestamp
         });
     });
     
-    // Sort by registration date (newest first)
-    userList.sort((a, b) => b.registrationDate - a.registrationDate);
+    // Sort based on current mode
+    if (userSortMode === 'activity') {
+        // Sort by most recently online first, then alphabetically
+        userList.sort((a, b) => {
+            // First priority: most recent lastSeen timestamp (highest = most recent)
+            const timeDiff = b.lastSeenTimestamp - a.lastSeenTimestamp;
+            if (timeDiff !== 0) return timeDiff;
+            
+            // Second priority: alphabetical by username
+            return a.username.localeCompare(b.username);
+        });
+    } else {
+        // Sort alphabetically
+        userList.sort((a, b) => a.username.localeCompare(b.username));
+    }
     
     return {
         totalRegistered: userList.length,
