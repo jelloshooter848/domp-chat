@@ -1,8 +1,38 @@
+// Firebase Configuration
+const firebaseConfig = {
+  apiKey: "AIzaSyCcgpC6uXs6SzvPQ0-LQG3Ko75vfdgJRas",
+  authDomain: "friend-chat-app-105d6.firebaseapp.com",
+  databaseURL: "https://friend-chat-app-105d6-default-rtdb.firebaseio.com",
+  projectId: "friend-chat-app-105d6",
+  storageBucket: "friend-chat-app-105d6.firebasestorage.app",
+  messagingSenderId: "749608456867",
+  appId: "1:749608456867:web:5c84e879670118880f6516"
+};
+
+// Initialize Firebase
+let database = null;
+let isFirebaseEnabled = false;
+
+try {
+    if (firebaseConfig.apiKey !== "YOUR_API_KEY") {
+        firebase.initializeApp(firebaseConfig);
+        database = firebase.database();
+        isFirebaseEnabled = true;
+        console.log("Firebase connected successfully!");
+    } else {
+        console.log("Firebase not configured - running in local mode");
+    }
+} catch (error) {
+    console.log("Firebase connection failed - running in local mode:", error);
+}
+
 let username = '';
+let messages = {};
 let currentRoom = 'general';
 let isPrivateChat = false;
 let privateChatFriend = '';
-let socket = null;
+let currentUsernames = [];
+let userPresenceRef = null;
 
 const rooms = {
     general: '🏠 General',
@@ -12,76 +42,6 @@ const rooms = {
     music: '🎵 Music',
     movies: '🎬 Movies'
 };
-
-function connectToServer() {
-    socket = io();
-    
-    socket.on('connect', () => {
-        console.log('Connected to server');
-    });
-    
-    socket.on('disconnect', () => {
-        console.log('Disconnected from server');
-        showNotification('Disconnected from server. Trying to reconnect...', 'error');
-    });
-    
-    socket.on('username-taken', (data) => {
-        alert(data.message + ' Please choose a different name. 😔');
-        document.getElementById('setup').classList.remove('hidden');
-        document.getElementById('chatArea').classList.add('hidden');
-    });
-    
-    socket.on('join-success', (data) => {
-        showNotification(`Welcome ${data.username}! You joined ${rooms[data.room]} 🎉`, 'success');
-    });
-    
-    socket.on('new-message', (message) => {
-        if (!isPrivateChat) {
-            displayMessage(message, message.username === username);
-        }
-    });
-    
-    socket.on('private-message', (message) => {
-        if (isPrivateChat && privateChatFriend === (message.username === username ? message.targetUser : message.username)) {
-            displayMessage(message, message.username === username);
-        }
-    });
-    
-    socket.on('user-joined', (data) => {
-        if (!isPrivateChat) {
-            displaySystemMessage(data.message);
-        }
-    });
-    
-    socket.on('user-left', (data) => {
-        if (!isPrivateChat) {
-            displaySystemMessage(data.message);
-        }
-    });
-    
-    socket.on('private-request', (data) => {
-        showPrivateRequestNotification(data);
-    });
-    
-    socket.on('request-sent', (data) => {
-        showNotification(`Request sent to ${data.targetUser}! 📨`, 'info');
-    });
-    
-    socket.on('user-not-found', (data) => {
-        showNotification(`User "${data.targetUser}" not found. They might not be online.`, 'error');
-    });
-    
-    socket.on('private-response', (data) => {
-        if (data.accepted) {
-            showNotification(data.message, 'success');
-            setTimeout(() => {
-                startPrivateChat(data.from);
-            }, 1000);
-        } else {
-            showNotification(data.message, 'info');
-        }
-    });
-}
 
 function startChat() {
     const usernameInput = document.getElementById('usernameInput');
@@ -95,37 +55,144 @@ function startChat() {
         return;
     }
     
-    if (!socket) {
-        connectToServer();
+    if (isFirebaseEnabled) {
+        checkUsernameAndJoin();
+    } else {
+        localUsernameCheck();
     }
     
-    socket.emit('join', { username, room: currentRoom });
+    function localUsernameCheck() {
+        loadCurrentUsernames();
+        
+        if (currentUsernames.includes(username.toLowerCase())) {
+            alert(`Sorry, the name "${username}" is already taken! Please choose a different name. 😔`);
+            return;
+        }
+        
+        currentUsernames.push(username.toLowerCase());
+        saveCurrentUsernames();
+        completeSetup();
+    }
     
-    setupDiv.classList.add('hidden');
-    chatArea.classList.remove('hidden');
+    function checkUsernameAndJoin() {
+        database.ref('users').once('value', (snapshot) => {
+            const users = snapshot.val() || {};
+            const usernames = Object.values(users).map(user => user.username.toLowerCase());
+            
+            if (usernames.includes(username.toLowerCase())) {
+                alert(`Sorry, the name "${username}" is already taken! Please choose a different name. 😔`);
+                return;
+            }
+            
+            // Add user to Firebase
+            const userId = Date.now().toString();
+            userPresenceRef = database.ref(`users/${userId}`);
+            userPresenceRef.set({
+                username: username,
+                online: true,
+                lastSeen: firebase.database.ServerValue.TIMESTAMP
+            });
+            
+            // Remove user when they disconnect
+            userPresenceRef.onDisconnect().remove();
+            
+            setupFirebaseListeners();
+            completeSetup();
+        });
+    }
     
-    setupRoomButtons();
-    setupPrivateChat();
-    switchRoom('general');
+    function completeSetup() {
+        setupDiv.classList.add('hidden');
+        chatArea.classList.remove('hidden');
+        
+        setupRoomButtons();
+        setupPrivateChat();
+        switchRoom('general');
+        
+        document.getElementById('messageInput').focus();
+        
+        if (isFirebaseEnabled) {
+            showNotification(`Connected to live chat! 🌐`, 'success');
+        } else {
+            showNotification(`Running in local mode 💻`, 'info');
+        }
+    }
+}
+
+function setupFirebaseListeners() {
+    if (!isFirebaseEnabled) return;
     
-    document.getElementById('messageInput').focus();
+    // Listen for new messages in all rooms
+    Object.keys(rooms).forEach(roomName => {
+        database.ref(`messages/${roomName}`).on('child_added', (snapshot) => {
+            const message = snapshot.val();
+            if (message && currentRoom === roomName && !isPrivateChat) {
+                displayMessage(message, message.username === username);
+            }
+        });
+    });
+    
+    // Listen for private messages
+    database.ref(`privateMessages/${username}`).on('child_added', (snapshot) => {
+        const message = snapshot.val();
+        if (message && isPrivateChat && privateChatFriend === message.from) {
+            displayMessage({
+                text: message.text,
+                username: message.from,
+                timestamp: message.timestamp
+            }, false);
+        }
+    });
+    
+    // Listen for private chat requests
+    database.ref(`requests/${username}`).on('child_added', (snapshot) => {
+        const request = snapshot.val();
+        if (request && request.from !== username) {
+            showFirebaseRequestNotification(request, snapshot.key);
+        }
+    });
 }
 
 function sendMessage() {
     const messageInput = document.getElementById('messageInput');
     const messageText = messageInput.value.trim();
     
-    if (messageText === '' || !socket) {
+    if (messageText === '') {
         return;
     }
     
-    socket.emit('send-message', {
+    const message = {
         text: messageText,
-        room: currentRoom,
-        isPrivate: isPrivateChat,
-        targetUser: privateChatFriend
-    });
+        username: username,
+        timestamp: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+        id: Date.now()
+    };
     
+    if (isFirebaseEnabled) {
+        if (isPrivateChat) {
+            // Send private message
+            database.ref(`privateMessages/${privateChatFriend}`).push({
+                from: username,
+                text: messageText,
+                timestamp: message.timestamp,
+                id: message.id
+            });
+        } else {
+            // Send public message
+            database.ref(`messages/${currentRoom}`).push(message);
+        }
+    } else {
+        // Local mode
+        const chatKey = isPrivateChat ? `private_${privateChatFriend}` : currentRoom;
+        
+        if (!messages[chatKey]) {
+            messages[chatKey] = [];
+        }
+        messages[chatKey].push(message);
+        saveMessages();
+    }
+    
+    displayMessage(message, true);
     messageInput.value = '';
     messageInput.focus();
 }
@@ -144,18 +211,28 @@ function displayMessage(message, isSent = false) {
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
 }
 
-function displaySystemMessage(text) {
-    const messagesContainer = document.getElementById('messages');
-    
-    const messageDiv = document.createElement('div');
-    messageDiv.className = 'message received';
-    messageDiv.innerHTML = `
-        <div>${text}</div>
-        <div class="message-info">System • just now</div>
-    `;
-    
-    messagesContainer.appendChild(messageDiv);
-    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+function saveMessages() {
+    if (!isFirebaseEnabled) {
+        try {
+            localStorage.setItem('chatMessages', JSON.stringify(messages));
+        } catch (e) {
+            console.log('Cannot save messages');
+        }
+    }
+}
+
+function loadMessages() {
+    if (!isFirebaseEnabled) {
+        try {
+            const savedMessages = localStorage.getItem('chatMessages');
+            if (savedMessages) {
+                messages = JSON.parse(savedMessages);
+            }
+        } catch (e) {
+            console.log('Cannot load messages');
+            messages = {};
+        }
+    }
 }
 
 function loadRoomMessages() {
@@ -176,15 +253,34 @@ function loadRoomMessages() {
             </div>
         `;
     }
+    
+    if (isFirebaseEnabled) {
+        // Load recent messages from Firebase
+        if (!isPrivateChat) {
+            database.ref(`messages/${currentRoom}`).limitToLast(50).once('value', (snapshot) => {
+                snapshot.forEach((childSnapshot) => {
+                    const message = childSnapshot.val();
+                    if (message.username !== username) {
+                        displayMessage(message, false);
+                    }
+                });
+            });
+        }
+    } else {
+        // Load from local storage
+        const chatKey = isPrivateChat ? `private_${privateChatFriend}` : currentRoom;
+        if (messages[chatKey]) {
+            messages[chatKey].forEach(message => {
+                const isSent = message.username === username;
+                displayMessage(message, isSent);
+            });
+        }
+    }
 }
 
 function switchRoom(roomName) {
-    if (!socket) return;
-    
     isPrivateChat = false;
     currentRoom = roomName;
-    
-    socket.emit('switch-room', { room: roomName });
     
     document.getElementById('roomSelector').classList.remove('hidden');
     document.getElementById('backToRooms').classList.add('hidden');
@@ -214,6 +310,10 @@ function startPrivateChat(friendName) {
 }
 
 function setupRoomButtons() {
+    if (!isFirebaseEnabled) {
+        loadMessages();
+    }
+    
     document.querySelectorAll('.room-button').forEach(button => {
         button.addEventListener('click', function() {
             const roomName = this.getAttribute('data-room');
@@ -259,19 +359,51 @@ function setupPrivateChat() {
 }
 
 function sendPrivateRequest(friendName) {
-    if (!socket) return;
-    
-    socket.emit('send-private-request', { targetUser: friendName });
+    if (isFirebaseEnabled) {
+        // Check if user exists and is online
+        database.ref('users').once('value', (snapshot) => {
+            const users = snapshot.val() || {};
+            const userExists = Object.values(users).some(user => user.username === friendName);
+            
+            if (userExists) {
+                database.ref(`requests/${friendName}`).push({
+                    from: username,
+                    timestamp: Date.now(),
+                    message: `${username} wants to chat privately with you!`
+                });
+                showNotification(`Request sent to ${friendName}! 📨`, 'info');
+            } else {
+                showNotification(`User "${friendName}" is not online right now.`, 'error');
+            }
+        });
+    } else {
+        // Local simulation
+        showNotification(`Request sent to ${friendName}! 📨`, 'info');
+        setTimeout(() => {
+            simulateIncomingRequest(friendName);
+        }, 2000 + Math.random() * 3000);
+    }
 }
 
-function showPrivateRequestNotification(request) {
+function simulateIncomingRequest(fromUser) {
+    const request = {
+        from: fromUser,
+        to: username,
+        timestamp: Date.now(),
+        id: `incoming_${Date.now()}`
+    };
+    
+    showRequestNotification(request);
+}
+
+function showRequestNotification(request) {
     const notification = document.createElement('div');
     notification.className = 'notification request';
     notification.innerHTML = `
         <div><strong>${request.from}</strong> wants to chat privately with you! 💬</div>
         <div class="notification-buttons">
-            <button class="notification-btn accept" onclick="acceptRequest('${request.from}', this)">Accept ✅</button>
-            <button class="notification-btn decline" onclick="declineRequest('${request.from}', this)">Decline ❌</button>
+            <button class="notification-btn accept" onclick="acceptRequest('${request.from}', '${request.id}')">Accept ✅</button>
+            <button class="notification-btn decline" onclick="declineRequest('${request.from}', '${request.id}')">Decline ❌</button>
         </div>
     `;
     
@@ -284,14 +416,30 @@ function showPrivateRequestNotification(request) {
     }, 30000);
 }
 
-function acceptRequest(friendName, buttonElement) {
-    const notification = buttonElement.closest('.notification');
+function showFirebaseRequestNotification(request, requestKey) {
+    const notification = document.createElement('div');
+    notification.className = 'notification request';
+    notification.innerHTML = `
+        <div><strong>${request.from}</strong> wants to chat privately with you! 💬</div>
+        <div class="notification-buttons">
+            <button class="notification-btn accept" onclick="acceptFirebaseRequest('${request.from}', '${requestKey}')">Accept ✅</button>
+            <button class="notification-btn decline" onclick="declineFirebaseRequest('${request.from}', '${requestKey}')">Decline ❌</button>
+        </div>
+    `;
+    
+    document.getElementById('notifications').appendChild(notification);
+    
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.remove();
+        }
+    }, 30000);
+}
+
+function acceptRequest(friendName, requestId) {
+    const notification = document.querySelector(`[onclick*="${requestId}"]`).closest('.notification');
     if (notification) {
         notification.remove();
-    }
-    
-    if (socket) {
-        socket.emit('respond-private-request', { from: friendName, accepted: true });
     }
     
     showNotification(`You accepted ${friendName}'s request! Starting private chat... 🎉`, 'success');
@@ -301,15 +449,39 @@ function acceptRequest(friendName, buttonElement) {
     }, 1000);
 }
 
-function declineRequest(friendName, buttonElement) {
-    const notification = buttonElement.closest('.notification');
+function acceptFirebaseRequest(friendName, requestKey) {
+    const notification = document.querySelector(`[onclick*="${requestKey}"]`).closest('.notification');
     if (notification) {
         notification.remove();
     }
     
-    if (socket) {
-        socket.emit('respond-private-request', { from: friendName, accepted: false });
+    // Remove the request
+    database.ref(`requests/${username}/${requestKey}`).remove();
+    
+    showNotification(`You accepted ${friendName}'s request! Starting private chat... 🎉`, 'success');
+    
+    setTimeout(() => {
+        startPrivateChat(friendName);
+    }, 1000);
+}
+
+function declineRequest(friendName, requestId) {
+    const notification = document.querySelector(`[onclick*="${requestId}"]`).closest('.notification');
+    if (notification) {
+        notification.remove();
     }
+    
+    showNotification(`You declined ${friendName}'s request.`, 'info');
+}
+
+function declineFirebaseRequest(friendName, requestKey) {
+    const notification = document.querySelector(`[onclick*="${requestKey}"]`).closest('.notification');
+    if (notification) {
+        notification.remove();
+    }
+    
+    // Remove the request
+    database.ref(`requests/${username}/${requestKey}`).remove();
     
     showNotification(`You declined ${friendName}'s request.`, 'info');
 }
@@ -324,6 +496,43 @@ function showNotification(message, type = 'info') {
     setTimeout(() => {
         notification.remove();
     }, 4000);
+}
+
+function loadCurrentUsernames() {
+    if (!isFirebaseEnabled) {
+        try {
+            const savedUsernames = localStorage.getItem('currentUsernames');
+            if (savedUsernames) {
+                currentUsernames = JSON.parse(savedUsernames);
+            }
+        } catch (e) {
+            console.log('Cannot load current usernames');
+            currentUsernames = [];
+        }
+    }
+}
+
+function saveCurrentUsernames() {
+    if (!isFirebaseEnabled) {
+        try {
+            localStorage.setItem('currentUsernames', JSON.stringify(currentUsernames));
+        } catch (e) {
+            console.log('Cannot save current usernames');
+        }
+    }
+}
+
+function releaseUsername() {
+    if (isFirebaseEnabled && userPresenceRef) {
+        userPresenceRef.remove();
+    } else if (username) {
+        const index = currentUsernames.indexOf(username.toLowerCase());
+        if (index > -1) {
+            currentUsernames.splice(index, 1);
+            saveCurrentUsernames();
+            console.log(`Released username: ${username}`);
+        }
+    }
 }
 
 document.getElementById('startChat').addEventListener('click', startChat);
@@ -343,4 +552,24 @@ document.getElementById('messageInput').addEventListener('keypress', function(e)
 
 window.addEventListener('load', function() {
     document.getElementById('privateRequestModal').classList.add('hidden');
+});
+
+// Release username when user leaves
+window.addEventListener('beforeunload', function() {
+    releaseUsername();
+});
+
+window.addEventListener('unload', function() {
+    releaseUsername();
+});
+
+// Also release on page visibility change (when tab is closed)
+document.addEventListener('visibilitychange', function() {
+    if (document.hidden) {
+        setTimeout(function() {
+            if (document.hidden) {
+                releaseUsername();
+            }
+        }, 30000);
+    }
 });
