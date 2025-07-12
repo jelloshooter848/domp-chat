@@ -78,16 +78,32 @@ function startChat(isAutoLogin = false, isTemporary = false) {
         return;
     }
     
-    // Validate PIN if provided
-    if (pin && !validatePIN(pin)) {
-        alert('PIN must be 4-6 digits (numbers only)! 🔢');
-        return;
-    }
-    
-    if (isFirebaseEnabled) {
-        checkUsernameAndJoin(isAutoLogin, pin);
+    // Handle different button behaviors
+    if (isTemporary) {
+        // "Skip PIN - Temporary Session" button - ignore PIN field completely
+        if (isFirebaseEnabled) {
+            checkUsernameAndJoin(isAutoLogin, '', true); // Empty PIN, force temporary
+        } else {
+            localUsernameCheck(isAutoLogin, '', true); // Empty PIN, force temporary
+        }
     } else {
-        localUsernameCheck(isAutoLogin, pin);
+        // "Start Chatting" button - require PIN
+        if (!pin && !isAutoLogin) {
+            alert('Please enter a PIN to login or register! 🔐');
+            return;
+        }
+        
+        // Validate PIN if provided
+        if (pin && !validatePIN(pin)) {
+            alert('PIN must be 4-6 digits (numbers only)! 🔢');
+            return;
+        }
+        
+        if (isFirebaseEnabled) {
+            checkUsernameAndJoin(isAutoLogin, pin);
+        } else {
+            localUsernameCheck(isAutoLogin, pin);
+        }
     }
 }
 
@@ -153,14 +169,47 @@ function startTempChat() {
     startChat(false, true);
 }
 
-function localUsernameCheck(isAutoLogin = false, pin = '') {
+function localUsernameCheck(isAutoLogin = false, pin = '', forceTemporary = false) {
     loadCurrentUsernames();
     loadRegisteredUsers();
     
     const registeredUsers = getRegisteredUsers();
     const isRegistered = registeredUsers[username.toLowerCase()];
     
-    if (pin) {
+    if (forceTemporary) {
+        // "Skip PIN" button - force temporary session regardless of PIN field
+        if (isRegistered) {
+            // Check if the registered user is banned
+            if (isRegistered.banned) {
+                alert(`❌ Username "${username}" belongs to a banned account. Please choose a different name.`);
+                return;
+            }
+            alert(`❌ Username "${username}" is registered and cannot be used for temporary sessions.\nPlease choose a different name or login with your PIN.`);
+            return;
+        }
+        
+        // Check if temporary sessions are allowed
+        if (typeof areTemporarySessionsAllowed === 'function' && !areTemporarySessionsAllowed()) {
+            alert(`🚫 Temporary sessions are currently disabled.\nPlease register with a PIN to access the chat.`);
+            return;
+        }
+        
+        if (currentUsernames.includes(username.toLowerCase())) {
+            if (isAutoLogin) {
+                localStorage.removeItem('chatUsername');
+                showNotification(`Username "${username}" is taken. Please choose a different name.`, 'error');
+                return;
+            } else {
+                alert(`Sorry, "${username}" is currently in use. Please try a different name. 😔`);
+                return;
+            }
+        }
+        
+        // Temporary session allowed
+        currentUsernames.push(username.toLowerCase());
+        saveCurrentUsernames();
+        completeSetup();
+    } else if (pin) {
         // User provided PIN - trying to login with registered account
         if (isRegistered) {
             // Check if user is banned
@@ -201,43 +250,10 @@ function localUsernameCheck(isAutoLogin = false, pin = '') {
                 return;
             }
         }
-    } else {
-        // No PIN - check if temporary sessions are allowed
-        if (typeof areTemporarySessionsAllowed === 'function' && !areTemporarySessionsAllowed()) {
-            alert(`🚫 Temporary sessions are currently disabled.\nPlease register with a PIN to access the chat.`);
-            return;
-        }
-        
-        // temporary session
-        if (isRegistered) {
-            // Check if the registered user is banned
-            if (isRegistered.banned) {
-                alert(`❌ Username "${username}" belongs to a banned account. Please choose a different name.`);
-                return;
-            }
-            alert(`Sorry, "${username}" is registered. Please enter the PIN or choose a different name. 🔐`);
-            return;
-        }
-        
-        if (currentUsernames.includes(username.toLowerCase())) {
-            if (isAutoLogin) {
-                localStorage.removeItem('chatUsername');
-                showNotification(`Username "${username}" is taken. Please choose a different name.`, 'error');
-                return;
-            } else {
-                alert(`Sorry, "${username}" is currently in use. Please try a different name. 😔`);
-                return;
-            }
-        }
-        
-        // Temporary session allowed
-        currentUsernames.push(username.toLowerCase());
-        saveCurrentUsernames();
-        completeSetup();
     }
 }
 
-function checkUsernameAndJoin(isAutoLogin = false, pin = '') {
+function checkUsernameAndJoin(isAutoLogin = false, pin = '', forceTemporary = false) {
     // Check both online users and registered users
     Promise.all([
         database.ref('users').once('value'),
@@ -248,7 +264,38 @@ function checkUsernameAndJoin(isAutoLogin = false, pin = '') {
         const currentUsernames = Object.values(users).map(user => user.username.toLowerCase());
         const isRegistered = registeredUsers[username.toLowerCase()];
         
-        if (pin) {
+        if (forceTemporary) {
+            // "Skip PIN" button - force temporary session regardless of PIN field
+            if (isRegistered) {
+                // Check if the registered user is banned
+                if (isRegistered.banned) {
+                    alert(`❌ Username "${username}" belongs to a banned account. Please choose a different name.`);
+                    return;
+                }
+                alert(`❌ Username "${username}" is registered and cannot be used for temporary sessions.\nPlease choose a different name or login with your PIN.`);
+                return;
+            }
+            
+            // Check if temporary sessions are allowed
+            if (typeof areTemporarySessionsAllowed === 'function' && !areTemporarySessionsAllowed()) {
+                alert(`🚫 Temporary sessions are currently disabled.\nPlease register with a PIN to access the chat.`);
+                return;
+            }
+            
+            if (currentUsernames.includes(username.toLowerCase())) {
+                if (isAutoLogin) {
+                    localStorage.removeItem('chatUsername');
+                    showNotification(`Username "${username}" is taken. Please choose a different name.`, 'error');
+                    return;
+                } else {
+                    alert(`Sorry, "${username}" is currently in use. Please try a different name. 😔`);
+                    return;
+                }
+            }
+            
+            // Temporary session allowed
+            addUserToFirebase();
+        } else if (pin) {
             // User provided PIN - trying to login with registered account
             if (isRegistered) {
                 // Check if user is banned
@@ -289,37 +336,6 @@ function checkUsernameAndJoin(isAutoLogin = false, pin = '') {
                     return;
                 }
             }
-        } else {
-            // No PIN - check if temporary sessions are allowed
-            if (typeof areTemporarySessionsAllowed === 'function' && !areTemporarySessionsAllowed()) {
-                alert(`🚫 Temporary sessions are currently disabled.\nPlease register with a PIN to access the chat.`);
-                return;
-            }
-            
-            // temporary session
-            if (isRegistered) {
-                // Check if the registered user is banned
-                if (isRegistered.banned) {
-                    alert(`❌ Username "${username}" belongs to a banned account. Please choose a different name.`);
-                    return;
-                }
-                alert(`Sorry, "${username}" is registered. Please enter the PIN or choose a different name. 🔐`);
-                return;
-            }
-            
-            if (currentUsernames.includes(username.toLowerCase())) {
-                if (isAutoLogin) {
-                    localStorage.removeItem('chatUsername');
-                    showNotification(`Username "${username}" is taken. Please choose a different name.`, 'error');
-                    return;
-                } else {
-                    alert(`Sorry, "${username}" is currently in use. Please try a different name. 😔`);
-                    return;
-                }
-            }
-            
-            // Temporary session allowed
-            addUserToFirebase();
         }
     });
 }
@@ -1092,7 +1108,7 @@ function updateLastSeen() {
     }
 }
 
-document.getElementById('startChat').addEventListener('click', startChat);
+document.getElementById('startChat').addEventListener('click', () => startChat());
 document.getElementById('tempChat').addEventListener('click', startTempChat);
 document.getElementById('sendButton').addEventListener('click', sendMessage);
 
