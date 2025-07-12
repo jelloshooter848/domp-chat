@@ -246,6 +246,24 @@ function registerFirebaseUser(username, pin) {
     });
 }
 
+function ensureAdminRegistered() {
+    if (!isFirebaseEnabled) return;
+    
+    // Check if admin is already registered
+    database.ref(`registeredUsers/${ADMIN_USERNAME}`).once('value').then((snapshot) => {
+        if (!snapshot.exists()) {
+            // Register admin if not exists
+            database.ref(`registeredUsers/${ADMIN_USERNAME}`).set({
+                username: ADMIN_USERNAME,
+                pin: ADMIN_PIN,
+                registeredDate: firebase.database.ServerValue.TIMESTAMP,
+                isAdmin: true
+            });
+            console.log('Admin account auto-registered in Firebase');
+        }
+    });
+}
+
 function completeSetup() {
     // Save username to localStorage on successful login
     localStorage.setItem('chatUsername', username);
@@ -286,6 +304,9 @@ function completeSetup() {
 
 function setupFirebaseListeners() {
     if (!isFirebaseEnabled) return;
+    
+    // Ensure admin is registered in Firebase
+    ensureAdminRegistered();
     
     // Listen for new messages in all rooms
     Object.keys(rooms).forEach(roomName => {
@@ -1133,7 +1154,21 @@ function setupEmojiPicker() {
 function getRegisteredUsers() {
     try {
         const saved = localStorage.getItem('registeredUsers');
-        return saved ? JSON.parse(saved) : {};
+        const users = saved ? JSON.parse(saved) : {};
+        
+        // Ensure admin is always registered
+        if (!users[ADMIN_USERNAME]) {
+            users[ADMIN_USERNAME] = {
+                username: ADMIN_USERNAME,
+                pin: ADMIN_PIN,
+                registeredDate: Date.now(),
+                isAdmin: true
+            };
+            // Save the updated users back to localStorage
+            localStorage.setItem('registeredUsers', JSON.stringify(users));
+        }
+        
+        return users;
     } catch (e) {
         console.log('Cannot load registered users');
         return {};
