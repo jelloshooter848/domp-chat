@@ -510,14 +510,26 @@ function sendPrivateRequest(friendName) {
                     timestamp: Date.now(),
                     message: `${username} wants to chat privately with you!`
                 });
-                showNotification(`Request sent to ${friendName}! 📨`, 'info');
+                showNotification(`Request sent to ${friendName}! Starting private chat... 📨`, 'success');
+                
+                // Automatically start private chat for the sender
+                setTimeout(() => {
+                    startPrivateChat(friendName);
+                }, 1000);
             } else {
                 showNotification(`User "${friendName}" is not online right now.`, 'error');
             }
         });
     } else {
         // Local simulation
-        showNotification(`Request sent to ${friendName}! 📨`, 'info');
+        showNotification(`Request sent to ${friendName}! Starting private chat... 📨`, 'success');
+        
+        // Automatically start private chat for the sender in local mode
+        setTimeout(() => {
+            startPrivateChat(friendName);
+        }, 1000);
+        
+        // Still simulate incoming request for testing
         setTimeout(() => {
             simulateIncomingRequest(friendName);
         }, 2000 + Math.random() * 3000);
