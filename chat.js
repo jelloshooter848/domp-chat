@@ -754,8 +754,51 @@ document.getElementById('messageInput').addEventListener('keypress', function(e)
 window.addEventListener('load', function() {
     document.getElementById('privateRequestModal').classList.add('hidden');
     
+    // Detect if running as installed PWA
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || 
+                        window.navigator.standalone || 
+                        document.referrer.includes('android-app://');
+    
+    if (isStandalone) {
+        // App is running as installed PWA
+        document.body.classList.add('pwa-mode');
+        console.log('Running as installed PWA');
+        
+        // Hide address bar on mobile browsers
+        setTimeout(() => {
+            window.scrollTo(0, 1);
+        }, 100);
+        
+        // Prevent context menu on long press
+        document.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+        });
+        
+        // Prevent text selection
+        document.onselectstart = () => false;
+        document.onmousedown = () => false;
+        
+        // Handle back button on Android
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('beforeunload', () => {
+                // Prevent accidental app closure
+            });
+        }
+    }
+    
     // Try to auto-login with saved username
     tryAutoLogin();
+    
+    // Register service worker for offline functionality
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('./sw.js')
+            .then((registration) => {
+                console.log('Service Worker registered successfully:', registration.scope);
+            })
+            .catch((error) => {
+                console.log('Service Worker registration failed:', error);
+            });
+    }
     
     // Add PWA install prompt handling
     let deferredPrompt;
