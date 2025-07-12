@@ -6,6 +6,9 @@
 // Admin panel sorting mode
 let userSortMode = 'activity'; // 'activity' or 'alphabetical'
 
+// Temporary sessions control
+let allowTemporarySessions = true;
+
 // Admin panel setup and management
 function setupAdminPanel() {
     const adminBtn = document.getElementById('adminBtn');
@@ -74,6 +77,19 @@ function setupAdminPanel() {
         sortDropdown.addEventListener('change', (e) => {
             userSortMode = e.target.value;
             loadUserManagement(); // Reload with new sorting
+        });
+    }
+    
+    // Setup temporary sessions toggle
+    const tempSessionsToggle = document.getElementById('tempSessionsToggle');
+    if (tempSessionsToggle) {
+        // Load current setting
+        loadTempSessionsSetting();
+        
+        tempSessionsToggle.addEventListener('change', (e) => {
+            allowTemporarySessions = e.target.checked;
+            saveTempSessionsSetting();
+            console.log(`Temporary sessions ${allowTemporarySessions ? 'enabled' : 'disabled'}`);
         });
     }
     
@@ -459,6 +475,68 @@ function getRegisteredUsers() {
     } catch (e) {
         return {};
     }
+}
+
+// Temporary sessions setting management
+function loadTempSessionsSetting() {
+    if (isFirebaseEnabled) {
+        // Load from Firebase
+        database.ref('adminSettings/allowTemporarySessions').once('value')
+            .then((snapshot) => {
+                const setting = snapshot.val();
+                allowTemporarySessions = setting !== null ? setting : true; // Default to true
+                updateTempSessionsToggle();
+            })
+            .catch((error) => {
+                console.log('Could not load temp sessions setting from Firebase:', error);
+                allowTemporarySessions = true; // Default to enabled
+                updateTempSessionsToggle();
+            });
+    } else {
+        // Load from localStorage
+        try {
+            const setting = localStorage.getItem('allowTemporarySessions');
+            allowTemporarySessions = setting !== null ? JSON.parse(setting) : true; // Default to true
+            updateTempSessionsToggle();
+        } catch (e) {
+            console.log('Could not load temp sessions setting from localStorage:', e);
+            allowTemporarySessions = true; // Default to enabled
+            updateTempSessionsToggle();
+        }
+    }
+}
+
+function saveTempSessionsSetting() {
+    if (isFirebaseEnabled) {
+        // Save to Firebase
+        database.ref('adminSettings/allowTemporarySessions').set(allowTemporarySessions)
+            .then(() => {
+                console.log('Temp sessions setting saved to Firebase');
+            })
+            .catch((error) => {
+                console.error('Failed to save temp sessions setting to Firebase:', error);
+            });
+    } else {
+        // Save to localStorage
+        try {
+            localStorage.setItem('allowTemporarySessions', JSON.stringify(allowTemporarySessions));
+            console.log('Temp sessions setting saved to localStorage');
+        } catch (e) {
+            console.error('Failed to save temp sessions setting to localStorage:', e);
+        }
+    }
+}
+
+function updateTempSessionsToggle() {
+    const toggle = document.getElementById('tempSessionsToggle');
+    if (toggle) {
+        toggle.checked = allowTemporarySessions;
+    }
+}
+
+// Function for chat.js to check if temporary sessions are allowed
+function areTemporarySessionsAllowed() {
+    return allowTemporarySessions;
 }
 
 // Utility functions for formatting

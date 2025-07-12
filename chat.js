@@ -202,7 +202,13 @@ function localUsernameCheck(isAutoLogin = false, pin = '') {
             }
         }
     } else {
-        // No PIN - temporary session
+        // No PIN - check if temporary sessions are allowed
+        if (typeof areTemporarySessionsAllowed === 'function' && !areTemporarySessionsAllowed()) {
+            alert(`🚫 Temporary sessions are currently disabled.\nPlease register with a PIN to access the chat.`);
+            return;
+        }
+        
+        // temporary session
         if (isRegistered) {
             // Check if the registered user is banned
             if (isRegistered.banned) {
@@ -284,7 +290,13 @@ function checkUsernameAndJoin(isAutoLogin = false, pin = '') {
                 }
             }
         } else {
-            // No PIN - temporary session
+            // No PIN - check if temporary sessions are allowed
+            if (typeof areTemporarySessionsAllowed === 'function' && !areTemporarySessionsAllowed()) {
+                alert(`🚫 Temporary sessions are currently disabled.\nPlease register with a PIN to access the chat.`);
+                return;
+            }
+            
+            // temporary session
             if (isRegistered) {
                 // Check if the registered user is banned
                 if (isRegistered.banned) {
