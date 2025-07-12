@@ -242,6 +242,7 @@
             display: flex;
             gap: 10px;
             flex-shrink: 0;
+            align-items: center;
         }
 
         .name-input {
@@ -282,6 +283,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            flex-shrink: 0;
         }
 
         .send-button:hover {
@@ -521,6 +523,143 @@
         .back-button:hover {
             background: #5a6268;
         }
+        
+        .emoji-button {
+            background: #ffc107;
+            color: #333;
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            cursor: pointer;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 5px;
+            flex-shrink: 0;
+        }
+        
+        .emoji-button:hover {
+            background: #e0a800;
+        }
+        
+        .emoji-picker {
+            position: absolute;
+            bottom: 70px;
+            right: 20px;
+            background: white;
+            border: 1px solid #e9ecef;
+            border-radius: 15px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            padding: 15px;
+            max-width: 320px;
+            z-index: 1000;
+        }
+        
+        #emojiGrid {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            gap: 8px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        .emoji-picker.hidden {
+            display: none;
+        }
+        
+        .emoji-item {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            border-radius: 8px;
+            padding: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+        
+        .emoji-item:hover {
+            background: #f8f9fa;
+        }
+        
+        .emoji-categories {
+            margin-bottom: 10px;
+            display: flex;
+            gap: 5px;
+            justify-content: center;
+        }
+        
+        .emoji-category {
+            background: #e9ecef;
+            border: none;
+            border-radius: 12px;
+            padding: 6px 12px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .emoji-category:hover,
+        .emoji-category.active {
+            background: #4a90e2;
+            color: white;
+        }
+        
+        @media (max-width: 768px) {
+            .emoji-picker {
+                bottom: 60px;
+                right: 10px;
+                left: 10px;
+                max-width: none;
+            }
+            
+            #emojiGrid {
+                grid-template-columns: repeat(6, 1fr);
+            }
+            
+            .emoji-button {
+                width: 35px;
+                height: 35px;
+                font-size: 16px;
+                margin-right: 5px;
+                flex-shrink: 0;
+            }
+            
+            .send-button {
+                width: 45px;
+                height: 45px;
+                font-size: 18px;
+                flex-shrink: 0;
+            }
+            
+            .input-container {
+                padding: 15px;
+                gap: 8px;
+            }
+            
+            .message-input {
+                min-width: 0;
+                font-size: 16px;
+            }
+            
+            .emoji-item {
+                font-size: 20px;
+                padding: 6px;
+            }
+            
+            .emoji-categories {
+                gap: 3px;
+            }
+            
+            .emoji-category {
+                padding: 4px 8px;
+                font-size: 14px;
+            }
+        }
 
     </style>
 </head>
@@ -569,6 +708,7 @@
                     
                     <div class="input-container">
                         <input type="text" id="messageInput" class="message-input" placeholder="Type your message..." maxlength="500">
+                        <button id="emojiButton" class="emoji-button">😀</button>
                         <button id="sendButton" class="send-button">📨</button>
                     </div>
                 </div>
@@ -604,6 +744,20 @@
 
     <!-- Notification area for incoming requests -->
     <div id="notifications"></div>
+    
+    <!-- Emoji Picker -->
+    <div id="emojiPicker" class="emoji-picker hidden">
+        <div class="emoji-categories">
+            <button class="emoji-category active" data-category="smileys">😀</button>
+            <button class="emoji-category" data-category="animals">🐶</button>
+            <button class="emoji-category" data-category="food">🍎</button>
+            <button class="emoji-category" data-category="activities">⚽</button>
+            <button class="emoji-category" data-category="objects">💡</button>
+        </div>
+        <div id="emojiGrid">
+            <!-- Emojis will be populated by JavaScript -->
+        </div>
+    </div>
 
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
