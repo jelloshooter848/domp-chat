@@ -861,6 +861,54 @@
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
         
+        .user-row.banned-user {
+            background: #fff5f5;
+            border-color: #fed7d7;
+            opacity: 0.8;
+        }
+        
+        .ban-status.banned {
+            background: #e53e3e;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.7em;
+            font-weight: bold;
+            margin-left: 8px;
+        }
+        
+        .user-actions {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .ban-btn, .unban-btn {
+            padding: 4px 12px;
+            border: none;
+            border-radius: 4px;
+            font-size: 0.8em;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        .ban-btn {
+            background: #e53e3e;
+            color: white;
+        }
+        
+        .ban-btn:hover {
+            background: #c53030;
+        }
+        
+        .unban-btn {
+            background: #38a169;
+            color: white;
+        }
+        
+        .unban-btn:hover {
+            background: #2f855a;
+        }
+        
         .user-info {
             display: flex;
             align-items: center;

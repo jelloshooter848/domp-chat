@@ -260,25 +260,33 @@ function processUserData(registeredUsers, onlineUsers) {
             registrationDate: registrationDate,
             isOnline: isOnline,
             lastSeen: lastSeenText,
-            lastSeenTimestamp: lastSeenTimestamp
+            lastSeenTimestamp: lastSeenTimestamp,
+            banned: userData.banned || false,
+            bannedDate: userData.bannedDate || null,
+            bannedBy: userData.bannedBy || null
         });
     });
     
-    // Sort based on current mode
-    if (userSortMode === 'activity') {
-        // Sort by most recently online first, then alphabetically
-        userList.sort((a, b) => {
-            // First priority: most recent lastSeen timestamp (highest = most recent)
+    // Sort based on current mode with banned users at bottom
+    userList.sort((a, b) => {
+        // First priority: banned status (non-banned users first)
+        if (a.banned !== b.banned) {
+            return a.banned ? 1 : -1;
+        }
+        
+        // Second priority: sorting mode
+        if (userSortMode === 'activity') {
+            // Sort by most recently online first, then alphabetically
             const timeDiff = b.lastSeenTimestamp - a.lastSeenTimestamp;
             if (timeDiff !== 0) return timeDiff;
             
-            // Second priority: alphabetical by username
+            // Fallback: alphabetical by username
             return a.username.localeCompare(b.username);
-        });
-    } else {
-        // Sort alphabetically
-        userList.sort((a, b) => a.username.localeCompare(b.username));
-    }
+        } else {
+            // Sort alphabetically
+            return a.username.localeCompare(b.username);
+        }
+    });
     
     return {
         totalRegistered: userList.length,
@@ -311,14 +319,25 @@ function updateUserManagementUI(userData) {
         const formattedDate = registrationDate.toLocaleDateString();
         const formattedTime = registrationDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         
+        // Create ban status and action elements
+        const banStatus = user.banned ? '<span class="ban-status banned">BANNED</span>' : '';
+        const banAction = user.banned 
+            ? `<button class="unban-btn" onclick="unbanUser('${user.username}')">Unban</button>`
+            : `<button class="ban-btn" onclick="banUser('${user.username}')">Ban</button>`;
+        
+        userRow.className = `user-row ${user.banned ? 'banned-user' : ''}`;
+        
         userRow.innerHTML = `
             <div class="user-info">
                 <div class="user-status ${user.isOnline ? 'online' : 'offline'}"></div>
-                <div class="user-name">${user.username}</div>
+                <div class="user-name">${user.username} ${banStatus}</div>
             </div>
             <div class="user-details">
                 <div class="user-registered">Registered: ${formattedDate} at ${formattedTime}</div>
                 <div class="user-last-seen">${user.lastSeen}</div>
+            </div>
+            <div class="user-actions">
+                ${banAction}
             </div>
         `;
         
@@ -333,6 +352,113 @@ function showUserManagementError() {
     
     const usersTable = document.getElementById('usersTable');
     usersTable.innerHTML = '<div style="color: #dc3545; text-align: center; padding: 20px;">Failed to load user data</div>';
+}
+
+// Ban/Unban functions
+function banUser(username) {
+    if (!isAdmin || !username) return;
+    
+    // Prevent admin from banning themselves
+    if (username.toLowerCase() === ADMIN_USERNAME.toLowerCase()) {
+        alert('Cannot ban the admin user!');
+        return;
+    }
+    
+    if (!confirm(`Are you sure you want to ban "${username}"? They will not be able to access the chat.`)) {
+        return;
+    }
+    
+    const banData = {
+        banned: true,
+        bannedDate: firebase?.database?.ServerValue?.TIMESTAMP || Date.now(),
+        bannedBy: ADMIN_USERNAME
+    };
+    
+    if (isFirebaseEnabled) {
+        // Update in Firebase
+        database.ref(`registeredUsers/${username.toLowerCase()}`).update(banData)
+            .then(() => {
+                console.log(`User ${username} has been banned`);
+                loadUserManagement(); // Refresh the list
+            })
+            .catch((error) => {
+                console.error('Error banning user:', error);
+                alert('Failed to ban user. Please try again.');
+            });
+    } else {
+        // Update in localStorage
+        const registeredUsers = getRegisteredUsers();
+        if (registeredUsers[username.toLowerCase()]) {
+            registeredUsers[username.toLowerCase()] = {
+                ...registeredUsers[username.toLowerCase()],
+                banned: true,
+                bannedDate: Date.now(),
+                bannedBy: ADMIN_USERNAME
+            };
+            
+            try {
+                localStorage.setItem('registeredUsers', JSON.stringify(registeredUsers));
+                console.log(`User ${username} has been banned`);
+                loadUserManagement(); // Refresh the list
+            } catch (e) {
+                console.error('Error banning user:', e);
+                alert('Failed to ban user. Please try again.');
+            }
+        }
+    }
+}
+
+function unbanUser(username) {
+    if (!isAdmin || !username) return;
+    
+    if (!confirm(`Are you sure you want to unban "${username}"? They will be able to access the chat again.`)) {
+        return;
+    }
+    
+    const unbanData = {
+        banned: null,
+        bannedDate: null,
+        bannedBy: null
+    };
+    
+    if (isFirebaseEnabled) {
+        // Update in Firebase
+        database.ref(`registeredUsers/${username.toLowerCase()}`).update(unbanData)
+            .then(() => {
+                console.log(`User ${username} has been unbanned`);
+                loadUserManagement(); // Refresh the list
+            })
+            .catch((error) => {
+                console.error('Error unbanning user:', error);
+                alert('Failed to unban user. Please try again.');
+            });
+    } else {
+        // Update in localStorage
+        const registeredUsers = getRegisteredUsers();
+        if (registeredUsers[username.toLowerCase()]) {
+            delete registeredUsers[username.toLowerCase()].banned;
+            delete registeredUsers[username.toLowerCase()].bannedDate;
+            delete registeredUsers[username.toLowerCase()].bannedBy;
+            
+            try {
+                localStorage.setItem('registeredUsers', JSON.stringify(registeredUsers));
+                console.log(`User ${username} has been unbanned`);
+                loadUserManagement(); // Refresh the list
+            } catch (e) {
+                console.error('Error unbanning user:', e);
+                alert('Failed to unban user. Please try again.');
+            }
+        }
+    }
+}
+
+// Helper function for localStorage (needed for ban/unban in local mode)
+function getRegisteredUsers() {
+    try {
+        return JSON.parse(localStorage.getItem('registeredUsers') || '{}');
+    } catch (e) {
+        return {};
+    }
 }
 
 // Utility functions for formatting

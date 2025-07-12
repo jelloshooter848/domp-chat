@@ -163,6 +163,13 @@ function localUsernameCheck(isAutoLogin = false, pin = '') {
     if (pin) {
         // User provided PIN - trying to login with registered account
         if (isRegistered) {
+            // Check if user is banned
+            if (isRegistered.banned) {
+                const bannedDate = isRegistered.bannedDate ? new Date(isRegistered.bannedDate).toLocaleDateString() : 'unknown date';
+                alert(`❌ Account "${username}" is banned.\nBanned on: ${bannedDate}\nBanned by: ${isRegistered.bannedBy || 'admin'}\n\nContact an administrator if you believe this is an error.`);
+                return;
+            }
+            
             if (isRegistered.pin === pin) {
                 // Correct PIN for registered user
                 if (checkAdminCredentials(username, pin)) {
@@ -197,6 +204,11 @@ function localUsernameCheck(isAutoLogin = false, pin = '') {
     } else {
         // No PIN - temporary session
         if (isRegistered) {
+            // Check if the registered user is banned
+            if (isRegistered.banned) {
+                alert(`❌ Username "${username}" belongs to a banned account. Please choose a different name.`);
+                return;
+            }
             alert(`Sorry, "${username}" is registered. Please enter the PIN or choose a different name. 🔐`);
             return;
         }
@@ -233,6 +245,13 @@ function checkUsernameAndJoin(isAutoLogin = false, pin = '') {
         if (pin) {
             // User provided PIN - trying to login with registered account
             if (isRegistered) {
+                // Check if user is banned
+                if (isRegistered.banned) {
+                    const bannedDate = isRegistered.bannedDate ? new Date(isRegistered.bannedDate).toLocaleDateString() : 'unknown date';
+                    alert(`❌ Account "${username}" is banned.\nBanned on: ${bannedDate}\nBanned by: ${isRegistered.bannedBy || 'admin'}\n\nContact an administrator if you believe this is an error.`);
+                    return;
+                }
+                
                 if (isRegistered.pin === pin) {
                     // Correct PIN for registered user
                     if (checkAdminCredentials(username, pin)) {
@@ -267,6 +286,11 @@ function checkUsernameAndJoin(isAutoLogin = false, pin = '') {
         } else {
             // No PIN - temporary session
             if (isRegistered) {
+                // Check if the registered user is banned
+                if (isRegistered.banned) {
+                    alert(`❌ Username "${username}" belongs to a banned account. Please choose a different name.`);
+                    return;
+                }
                 alert(`Sorry, "${username}" is registered. Please enter the PIN or choose a different name. 🔐`);
                 return;
             }
