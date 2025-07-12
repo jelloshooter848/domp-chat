@@ -39,8 +39,6 @@
             justify-content: center;
             align-items: center;
             overflow: hidden;
-            -webkit-user-select: none;
-            -webkit-touch-callout: none;
             -webkit-tap-highlight-color: transparent;
         }
         
@@ -52,6 +50,15 @@
         
         body.pwa-mode .chat-container {
             -webkit-app-region: no-drag; /* Prevent dragging on chat area */
+        }
+        
+        /* Ensure inputs work in PWA mode */
+        body.pwa-mode input,
+        body.pwa-mode textarea,
+        body.pwa-mode button {
+            -webkit-user-select: text;
+            -webkit-touch-callout: default;
+            -webkit-tap-highlight-color: rgba(0,0,0,0.1);
         }
 
         .chat-container {

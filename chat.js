@@ -774,9 +774,18 @@ window.addEventListener('load', function() {
             e.preventDefault();
         });
         
-        // Prevent text selection
-        document.onselectstart = () => false;
-        document.onmousedown = () => false;
+        // Prevent text selection only on non-input elements
+        document.addEventListener('selectstart', (e) => {
+            if (!e.target.matches('input, textarea, [contenteditable]')) {
+                e.preventDefault();
+            }
+        });
+        
+        document.addEventListener('mousedown', (e) => {
+            if (!e.target.matches('input, textarea, button, [contenteditable]')) {
+                e.preventDefault();
+            }
+        });
         
         // Handle back button on Android
         if ('serviceWorker' in navigator) {
