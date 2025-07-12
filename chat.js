@@ -1009,6 +1009,9 @@ function saveCurrentUsernames() {
 }
 
 function releaseUsername() {
+    // Update last seen for registered users before releasing
+    updateLastSeen();
+    
     if (isFirebaseEnabled && userPresenceRef) {
         userPresenceRef.remove();
         userPresenceRef = null;
@@ -1018,6 +1021,33 @@ function releaseUsername() {
             currentUsernames.splice(index, 1);
             saveCurrentUsernames();
             console.log(`Released username: ${username}`);
+        }
+    }
+}
+
+function updateLastSeen() {
+    if (!username || isTemporarySession) return; // Skip for temporary users
+    
+    if (isFirebaseEnabled) {
+        // Update last seen in Firebase for registered users
+        database.ref(`registeredUsers/${username.toLowerCase()}/lastSeen`).set(firebase.database.ServerValue.TIMESTAMP)
+            .then(() => {
+                console.log(`Updated last seen for ${username}`);
+            })
+            .catch((error) => {
+                console.log('Failed to update last seen:', error);
+            });
+    } else {
+        // Update last seen in local storage for registered users
+        const registeredUsers = getRegisteredUsers();
+        if (registeredUsers[username.toLowerCase()]) {
+            registeredUsers[username.toLowerCase()].lastSeen = Date.now();
+            try {
+                localStorage.setItem('registeredUsers', JSON.stringify(registeredUsers));
+                console.log(`Updated last seen locally for ${username}`);
+            } catch (e) {
+                console.log('Failed to update last seen locally');
+            }
         }
     }
 }
@@ -1578,11 +1608,23 @@ function processUserData(registeredUsers, onlineUsers) {
         const registrationDate = userData.registeredDate || 0;
         if (registrationDate > sevenDaysAgo) recentRegistrations++;
         
+        // Determine last seen display text
+        let lastSeenText;
+        if (isOnline) {
+            lastSeenText = 'Online now';
+        } else {
+            // Use lastSeen data if available, otherwise fall back to registration date
+            const timestampToUse = userData.lastSeen || registrationDate;
+            
+            
+            lastSeenText = formatLastSeen(timestampToUse);
+        }
+        
         userList.push({
             username: userData.username,
             registrationDate: registrationDate,
             isOnline: isOnline,
-            lastSeen: isOnline ? 'Online now' : formatLastSeen(registrationDate)
+            lastSeen: lastSeenText
         });
     });
     
@@ -1618,6 +1660,7 @@ function updateUserManagementUI(userData) {
         
         const registrationDate = new Date(user.registrationDate);
         const formattedDate = registrationDate.toLocaleDateString();
+        const formattedTime = registrationDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         
         userRow.innerHTML = `
             <div class="user-info">
@@ -1625,7 +1668,7 @@ function updateUserManagementUI(userData) {
                 <div class="user-name">${user.username}</div>
             </div>
             <div class="user-details">
-                <div class="user-registered">Registered: ${formattedDate}</div>
+                <div class="user-registered">Registered: ${formattedDate} at ${formattedTime}</div>
                 <div class="user-last-seen">${user.lastSeen}</div>
             </div>
         `;
@@ -1644,14 +1687,36 @@ function showUserManagementError() {
 }
 
 function formatLastSeen(timestamp) {
-    if (!timestamp) return 'Unknown';
+    if (!timestamp) return 'Last seen: Unknown';
+    
+    // Use calendar days instead of 24-hour periods
+    const now = new Date();
+    const lastSeenDate = new Date(timestamp);
+    
+    // Set both dates to midnight for proper day comparison
+    const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const lastSeenMidnight = new Date(lastSeenDate.getFullYear(), lastSeenDate.getMonth(), lastSeenDate.getDate());
+    
+    const timeDiff = todayMidnight - lastSeenMidnight;
+    const days = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
+    
+    
+    if (days === 0) return 'Last seen online today';
+    if (days === 1) return 'Last seen online yesterday';
+    if (days < 7) return `Last seen online ${days} days ago`;
+    if (days < 30) return `Last seen online ${Math.floor(days / 7)} weeks ago`;
+    return `Last seen online ${Math.floor(days / 30)} months ago`;
+}
+
+function formatRegistrationAge(timestamp) {
+    if (!timestamp) return 'at unknown time';
     
     const now = Date.now();
     const timeDiff = now - timestamp;
     const days = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
     
-    if (days === 0) return 'Today';
-    if (days === 1) return 'Yesterday';
+    if (days === 0) return 'today';
+    if (days === 1) return 'yesterday';
     if (days < 7) return `${days} days ago`;
     if (days < 30) return `${Math.floor(days / 7)} weeks ago`;
     return `${Math.floor(days / 30)} months ago`;
