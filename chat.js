@@ -1392,6 +1392,8 @@ function setupAdminPanel() {
     // Show admin button only for admin users
     if (isAdmin) {
         adminBtn.classList.remove('hidden');
+    } else {
+        adminBtn.classList.add('hidden');
     }
     
     // Admin button click
