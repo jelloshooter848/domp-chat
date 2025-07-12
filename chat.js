@@ -177,8 +177,10 @@ function sendMessage() {
                 timestamp: message.timestamp,
                 id: message.id
             });
+            // Only display for private messages since they don't come back through listeners
+            displayMessage(message, true);
         } else {
-            // Send public message
+            // Send public message - don't display here, let the listener handle it
             database.ref(`messages/${currentRoom}`).push(message);
         }
     } else {
@@ -190,9 +192,8 @@ function sendMessage() {
         }
         messages[chatKey].push(message);
         saveMessages();
+        displayMessage(message, true);
     }
-    
-    displayMessage(message, true);
     messageInput.value = '';
     messageInput.focus();
 }
