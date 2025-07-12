@@ -44,6 +44,9 @@ const rooms = {
 };
 
 let isTemporarySession = false;
+let isAdmin = false;
+const ADMIN_USERNAME = 'admin';
+const ADMIN_PIN = '1234';
 
 function startChat(isAutoLogin = false, isTemporary = false) {
     const usernameInput = document.getElementById('usernameInput');
@@ -79,6 +82,10 @@ function validatePIN(pin) {
     return /^\d{4,6}$/.test(pin);
 }
 
+function checkAdminCredentials(username, pin) {
+    return username.toLowerCase() === ADMIN_USERNAME && pin === ADMIN_PIN;
+}
+
 function startTempChat() {
     startChat(false, true);
 }
@@ -95,6 +102,9 @@ function localUsernameCheck(isAutoLogin = false, pin = '') {
         if (isRegistered) {
             if (isRegistered.pin === pin) {
                 // Correct PIN for registered user
+                if (checkAdminCredentials(username, pin)) {
+                    isAdmin = true;
+                }
                 completeSetup();
                 return;
             } else {
@@ -109,6 +119,9 @@ function localUsernameCheck(isAutoLogin = false, pin = '') {
             }
             
             if (confirm(`Register "${username}" permanently with PIN ${pin}? You'll be able to use this name on any device! 🔐`)) {
+                if (checkAdminCredentials(username, pin)) {
+                    isAdmin = true;
+                }
                 registerUser(username, pin);
                 completeSetup();
                 return;
@@ -157,6 +170,9 @@ function checkUsernameAndJoin(isAutoLogin = false, pin = '') {
             if (isRegistered) {
                 if (isRegistered.pin === pin) {
                     // Correct PIN for registered user
+                    if (checkAdminCredentials(username, pin)) {
+                        isAdmin = true;
+                    }
                     addUserToFirebase();
                     return;
                 } else {
@@ -171,6 +187,9 @@ function checkUsernameAndJoin(isAutoLogin = false, pin = '') {
                 }
                 
                 if (confirm(`Register "${username}" permanently with PIN ${pin}? You'll be able to use this name on any device! 🔐`)) {
+                    if (checkAdminCredentials(username, pin)) {
+                        isAdmin = true;
+                    }
                     registerFirebaseUser(username, pin);
                     addUserToFirebase();
                     return;
@@ -239,6 +258,7 @@ function completeSetup() {
     
     setupRoomButtons();
     setupPrivateChat();
+    setupAdminPanel();
     switchRoom('general');
     
     document.getElementById('messageInput').focus();
@@ -1138,6 +1158,55 @@ function registerUser(username, pin) {
     } catch (e) {
         console.log('Cannot save registered users');
     }
+}
+
+// Admin panel setup and management
+function setupAdminPanel() {
+    const adminBtn = document.getElementById('adminBtn');
+    const adminModal = document.getElementById('adminModal');
+    const closeAdmin = document.getElementById('closeAdmin');
+    
+    // Show admin button only for admin users
+    if (isAdmin) {
+        adminBtn.classList.remove('hidden');
+    }
+    
+    // Admin button click
+    adminBtn.addEventListener('click', () => {
+        adminModal.classList.remove('hidden');
+    });
+    
+    // Close admin panel
+    closeAdmin.addEventListener('click', () => {
+        adminModal.classList.add('hidden');
+    });
+    
+    // Admin tab switching
+    const adminTabs = document.querySelectorAll('.admin-tab');
+    const adminTabContents = document.querySelectorAll('.admin-tab-content');
+    
+    adminTabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            const targetTab = tab.dataset.tab;
+            
+            // Update active tab
+            adminTabs.forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            
+            // Show corresponding content
+            adminTabContents.forEach(content => {
+                content.classList.add('hidden');
+            });
+            document.getElementById(targetTab + 'Tab').classList.remove('hidden');
+        });
+    });
+    
+    // Close modal when clicking outside
+    adminModal.addEventListener('click', (e) => {
+        if (e.target === adminModal) {
+            adminModal.classList.add('hidden');
+        }
+    });
 }
 
 

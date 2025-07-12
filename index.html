@@ -602,6 +602,52 @@
         .logout-btn:hover {
             background: #c82333;
         }
+        
+        .admin-btn {
+            background: #6f42c1;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        .admin-btn:hover {
+            background: #5a32a3;
+        }
+        
+        .admin-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #e9ecef;
+            padding-bottom: 10px;
+        }
+        
+        .admin-tab {
+            background: #e9ecef;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .admin-tab.active,
+        .admin-tab:hover {
+            background: #4a90e2;
+            color: white;
+        }
+        
+        .admin-tab-content h4 {
+            color: #4a90e2;
+            margin-bottom: 15px;
+        }
 
         .modal {
             position: fixed;
@@ -909,6 +955,7 @@
                 <div class="header-controls">
                     <button id="onlineToggle" class="online-toggle">👥 <span id="mobileOnlineCount">0</span></button>
                     <button id="privateChatBtn" class="private-chat-btn">💬 Private</button>
+                    <button id="adminBtn" class="admin-btn hidden">⚙️ Admin</button>
                     <button id="logoutBtn" class="logout-btn">🚪 Logout</button>
                 </div>
             </div>
@@ -969,6 +1016,48 @@
 
     <!-- Notification area for incoming requests -->
     <div id="notifications"></div>
+    
+    <!-- Admin Panel Modal -->
+    <div id="adminModal" class="modal hidden">
+        <div class="modal-content" style="max-width: 600px; max-height: 80vh; overflow-y: auto;">
+            <h3>🛠️ Admin Panel</h3>
+            <div class="admin-tabs">
+                <button class="admin-tab active" data-tab="users">👥 Users</button>
+                <button class="admin-tab" data-tab="messages">💬 Messages</button>
+                <button class="admin-tab" data-tab="settings">⚙️ Settings</button>
+            </div>
+            
+            <div id="adminTabContent">
+                <div id="usersTab" class="admin-tab-content">
+                    <h4>User Management</h4>
+                    <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; text-align: center; color: #666;">
+                        🚧 Under Construction 🚧<br>
+                        Coming soon: View online users, manage registrations, ban/unban users
+                    </div>
+                </div>
+                
+                <div id="messagesTab" class="admin-tab-content hidden">
+                    <h4>Message Moderation</h4>
+                    <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; text-align: center; color: #666;">
+                        🚧 Under Construction 🚧<br>
+                        Coming soon: View all messages, delete inappropriate content, chat logs
+                    </div>
+                </div>
+                
+                <div id="settingsTab" class="admin-tab-content hidden">
+                    <h4>System Settings</h4>
+                    <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; text-align: center; color: #666;">
+                        🚧 Under Construction 🚧<br>
+                        Coming soon: Room management, app settings, backup/restore
+                    </div>
+                </div>
+            </div>
+            
+            <div class="modal-buttons">
+                <button id="closeAdmin" class="modal-button secondary">Close</button>
+            </div>
+        </div>
+    </div>
     
     <!-- Emoji Picker -->
     <div id="emojiPicker" class="emoji-picker hidden">
