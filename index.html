@@ -498,6 +498,22 @@
         .start-button:hover {
             background: #357abd;
         }
+        
+        .temp-button {
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 10px 25px;
+            border-radius: 20px;
+            font-size: 14px;
+            cursor: pointer;
+            margin-top: 10px;
+            margin-left: 10px;
+        }
+        
+        .temp-button:hover {
+            background: #5a6268;
+        }
 
         .hidden {
             display: none !important;
@@ -872,10 +888,18 @@
             </div>
             <h2>Welcome to Friend Chat! 👋</h2>
             <p>Enter your name to start chatting:</p>
-            <p style="font-size: 0.9em; color: #666; margin-bottom: 10px;">Choose a unique name - no duplicates allowed!</p>
             <input type="text" id="usernameInput" class="name-input" placeholder="Your name..." maxlength="20">
-            <br>
+            
+            <p style="font-size: 0.9em; color: #666; margin: 15px 0 5px 0;">Optional PIN (4-6 digits to permanently claim this name):</p>
+            <input type="text" id="pinInput" class="name-input" placeholder="PIN (optional)" maxlength="6" pattern="[0-9]*" inputmode="numeric">
+            
+            <p style="font-size: 0.8em; color: #888; margin: 5px 0 15px 0;">
+                <strong>With PIN:</strong> Keep your name forever on any device<br>
+                <strong>Without PIN:</strong> Temporary session, name released when you leave
+            </p>
+            
             <button id="startChat" class="start-button">Start Chatting! 🚀</button>
+            <button id="tempChat" class="temp-button">Skip PIN - Temporary Session</button>
         </div>
 
         <div id="chatArea" class="hidden">

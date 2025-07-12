@@ -43,12 +43,17 @@ const rooms = {
     movies: '🎬 Movies'
 };
 
-function startChat(isAutoLogin = false) {
+let isTemporarySession = false;
+
+function startChat(isAutoLogin = false, isTemporary = false) {
     const usernameInput = document.getElementById('usernameInput');
+    const pinInput = document.getElementById('pinInput');
     const setupDiv = document.getElementById('setup');
     const chatArea = document.getElementById('chatArea');
     
     username = usernameInput.value.trim();
+    const pin = pinInput.value.trim();
+    isTemporarySession = isTemporary;
     
     if (username === '') {
         if (!isAutoLogin) {
@@ -57,98 +62,205 @@ function startChat(isAutoLogin = false) {
         return;
     }
     
-    if (isFirebaseEnabled) {
-        checkUsernameAndJoin(isAutoLogin);
-    } else {
-        localUsernameCheck(isAutoLogin);
+    // Validate PIN if provided
+    if (pin && !validatePIN(pin)) {
+        alert('PIN must be 4-6 digits (numbers only)! 🔢');
+        return;
     }
     
-    function localUsernameCheck(isAutoLogin = false) {
-        loadCurrentUsernames();
+    if (isFirebaseEnabled) {
+        checkUsernameAndJoin(isAutoLogin, pin);
+    } else {
+        localUsernameCheck(isAutoLogin, pin);
+    }
+}
+
+function validatePIN(pin) {
+    return /^\d{4,6}$/.test(pin);
+}
+
+function startTempChat() {
+    startChat(false, true);
+}
+
+function localUsernameCheck(isAutoLogin = false, pin = '') {
+    loadCurrentUsernames();
+    loadRegisteredUsers();
+    
+    const registeredUsers = getRegisteredUsers();
+    const isRegistered = registeredUsers[username.toLowerCase()];
+    
+    if (pin) {
+        // User provided PIN - trying to login with registered account
+        if (isRegistered) {
+            if (isRegistered.pin === pin) {
+                // Correct PIN for registered user
+                completeSetup();
+                return;
+            } else {
+                alert(`Incorrect PIN for "${username}". Please try again. 🔐`);
+                return;
+            }
+        } else {
+            // New registration
+            if (currentUsernames.includes(username.toLowerCase())) {
+                alert(`Sorry, "${username}" is currently in use. Please try a different name. 😔`);
+                return;
+            }
+            
+            if (confirm(`Register "${username}" permanently with PIN ${pin}? You'll be able to use this name on any device! 🔐`)) {
+                registerUser(username, pin);
+                completeSetup();
+                return;
+            } else {
+                return;
+            }
+        }
+    } else {
+        // No PIN - temporary session
+        if (isRegistered) {
+            alert(`Sorry, "${username}" is registered. Please enter the PIN or choose a different name. 🔐`);
+            return;
+        }
         
         if (currentUsernames.includes(username.toLowerCase())) {
             if (isAutoLogin) {
-                // Auto-login failed, clear saved username and show login
                 localStorage.removeItem('chatUsername');
                 showNotification(`Username "${username}" is taken. Please choose a different name.`, 'error');
                 return;
             } else {
-                alert(`Sorry, the name "${username}" is already taken! Please choose a different name. 😔`);
+                alert(`Sorry, "${username}" is currently in use. Please try a different name. 😔`);
                 return;
             }
         }
         
+        // Temporary session allowed
         currentUsernames.push(username.toLowerCase());
         saveCurrentUsernames();
         completeSetup();
     }
-    
-    function checkUsernameAndJoin(isAutoLogin = false) {
-        database.ref('users').once('value', (snapshot) => {
-            const users = snapshot.val() || {};
-            const usernames = Object.values(users).map(user => user.username.toLowerCase());
+}
+
+function checkUsernameAndJoin(isAutoLogin = false, pin = '') {
+    // Check both online users and registered users
+    Promise.all([
+        database.ref('users').once('value'),
+        database.ref('registeredUsers').once('value')
+    ]).then(([usersSnapshot, registeredSnapshot]) => {
+        const users = usersSnapshot.val() || {};
+        const registeredUsers = registeredSnapshot.val() || {};
+        const currentUsernames = Object.values(users).map(user => user.username.toLowerCase());
+        const isRegistered = registeredUsers[username.toLowerCase()];
+        
+        if (pin) {
+            // User provided PIN - trying to login with registered account
+            if (isRegistered) {
+                if (isRegistered.pin === pin) {
+                    // Correct PIN for registered user
+                    addUserToFirebase();
+                    return;
+                } else {
+                    alert(`Incorrect PIN for "${username}". Please try again. 🔐`);
+                    return;
+                }
+            } else {
+                // New registration
+                if (currentUsernames.includes(username.toLowerCase())) {
+                    alert(`Sorry, "${username}" is currently in use. Please try a different name. 😔`);
+                    return;
+                }
+                
+                if (confirm(`Register "${username}" permanently with PIN ${pin}? You'll be able to use this name on any device! 🔐`)) {
+                    registerFirebaseUser(username, pin);
+                    addUserToFirebase();
+                    return;
+                } else {
+                    return;
+                }
+            }
+        } else {
+            // No PIN - temporary session
+            if (isRegistered) {
+                alert(`Sorry, "${username}" is registered. Please enter the PIN or choose a different name. 🔐`);
+                return;
+            }
             
-            if (usernames.includes(username.toLowerCase())) {
+            if (currentUsernames.includes(username.toLowerCase())) {
                 if (isAutoLogin) {
-                    // Auto-login failed, clear saved username and show login
                     localStorage.removeItem('chatUsername');
                     showNotification(`Username "${username}" is taken. Please choose a different name.`, 'error');
                     return;
                 } else {
-                    alert(`Sorry, the name "${username}" is already taken! Please choose a different name. 😔`);
+                    alert(`Sorry, "${username}" is currently in use. Please try a different name. 😔`);
                     return;
                 }
             }
             
-            // Add user to Firebase
-            const userId = Date.now().toString();
-            userPresenceRef = database.ref(`users/${userId}`);
-            userPresenceRef.set({
-                username: username,
-                online: true,
-                lastSeen: firebase.database.ServerValue.TIMESTAMP
-            });
-            
-            // Remove user when they disconnect
-            userPresenceRef.onDisconnect().remove();
-            
-            setupFirebaseListeners();
-            completeSetup();
-        });
-    }
-    
-    function completeSetup() {
-        // Save username to localStorage on successful login
-        localStorage.setItem('chatUsername', username);
-        
-        setupDiv.classList.add('hidden');
-        chatArea.classList.remove('hidden');
-        
-        setupRoomButtons();
-        setupPrivateChat();
-        switchRoom('general');
-        
-        document.getElementById('messageInput').focus();
-        
-        // Initialize online users list
-        const savedUsername = localStorage.getItem('chatUsername');
-        const isReturningUser = savedUsername === username;
-        
-        if (isFirebaseEnabled) {
-            if (isReturningUser) {
-                showNotification(`Welcome back, ${username}! 🌐`, 'success');
-            } else {
-                showNotification(`Connected to live chat! 🌐`, 'success');
-            }
-            // Firebase listener will update the list automatically
-        } else {
-            if (isReturningUser) {
-                showNotification(`Welcome back, ${username}! 💻`, 'info');
-            } else {
-                showNotification(`Running in local mode 💻`, 'info');
-            }
-            updateOnlineUsersList({}); // Initialize local mode display
+            // Temporary session allowed
+            addUserToFirebase();
         }
+    });
+}
+
+function addUserToFirebase() {
+    const userId = Date.now().toString();
+    userPresenceRef = database.ref(`users/${userId}`);
+    userPresenceRef.set({
+        username: username,
+        online: true,
+        isTemporary: isTemporarySession,
+        lastSeen: firebase.database.ServerValue.TIMESTAMP
+    });
+    
+    // Remove user when they disconnect
+    userPresenceRef.onDisconnect().remove();
+    
+    setupFirebaseListeners();
+    completeSetup();
+}
+
+function registerFirebaseUser(username, pin) {
+    database.ref(`registeredUsers/${username.toLowerCase()}`).set({
+        username: username,
+        pin: pin,
+        registeredDate: firebase.database.ServerValue.TIMESTAMP
+    });
+}
+
+function completeSetup() {
+    // Save username to localStorage on successful login
+    localStorage.setItem('chatUsername', username);
+    
+    const setupDiv = document.getElementById('setup');
+    const chatArea = document.getElementById('chatArea');
+    
+    setupDiv.classList.add('hidden');
+    chatArea.classList.remove('hidden');
+    
+    setupRoomButtons();
+    setupPrivateChat();
+    switchRoom('general');
+    
+    document.getElementById('messageInput').focus();
+    
+    // Initialize online users list
+    const savedUsername = localStorage.getItem('chatUsername');
+    const isReturningUser = savedUsername === username;
+    
+    if (isFirebaseEnabled) {
+        if (isReturningUser) {
+            showNotification(`Welcome back, ${username}! 🌐`, 'success');
+        } else {
+            showNotification(`Connected to live chat! 🌐`, 'success');
+        }
+        // Firebase listener will update the list automatically
+    } else {
+        if (isReturningUser) {
+            showNotification(`Welcome back, ${username}! 💻`, 'info');
+        } else {
+            showNotification(`Running in local mode 💻`, 'info');
+        }
+        updateOnlineUsersList({}); // Initialize local mode display
     }
 }
 
@@ -749,9 +861,16 @@ function releaseUsername() {
 }
 
 document.getElementById('startChat').addEventListener('click', startChat);
+document.getElementById('tempChat').addEventListener('click', startTempChat);
 document.getElementById('sendButton').addEventListener('click', sendMessage);
 
 document.getElementById('usernameInput').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        startChat();
+    }
+});
+
+document.getElementById('pinInput').addEventListener('keypress', function(e) {
     if (e.key === 'Enter') {
         startChat();
     }
@@ -987,6 +1106,37 @@ function setupEmojiPicker() {
         
         // Hide emoji picker after selection
         emojiPicker.classList.add('hidden');
+    }
+}
+
+// Local storage functions for registered users
+function getRegisteredUsers() {
+    try {
+        const saved = localStorage.getItem('registeredUsers');
+        return saved ? JSON.parse(saved) : {};
+    } catch (e) {
+        console.log('Cannot load registered users');
+        return {};
+    }
+}
+
+function loadRegisteredUsers() {
+    // Already loaded in getRegisteredUsers()
+}
+
+function registerUser(username, pin) {
+    const registeredUsers = getRegisteredUsers();
+    registeredUsers[username.toLowerCase()] = {
+        username: username,
+        pin: pin,
+        registeredDate: Date.now()
+    };
+    
+    try {
+        localStorage.setItem('registeredUsers', JSON.stringify(registeredUsers));
+        console.log(`Registered user: ${username}`);
+    } catch (e) {
+        console.log('Cannot save registered users');
     }
 }
 
