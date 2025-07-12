@@ -1432,10 +1432,25 @@ function loadUsageStatistics() {
         const onlineUsers = usersSnapshot.val() || {};
         const allMessages = messagesSnapshot.val() || {};
         
+        // Calculate user type breakdown for online users
+        const onlineUsersList = Object.values(onlineUsers);
+        let registeredOnline = 0;
+        let temporaryOnline = 0;
+        
+        onlineUsersList.forEach(user => {
+            if (registeredUsers[user.username.toLowerCase()]) {
+                registeredOnline++;
+            } else {
+                temporaryOnline++;
+            }
+        });
+        
         // Calculate statistics
         const stats = {
             registeredCount: Object.keys(registeredUsers).length,
-            onlineCount: Object.keys(onlineUsers).length,
+            registeredOnline: registeredOnline,
+            temporaryOnline: temporaryOnline,
+            totalOnline: registeredOnline + temporaryOnline,
             messageCount: 0,
             roomStats: {}
         };
@@ -1469,7 +1484,14 @@ function updateUsageStatisticsUI(stats, storageKB) {
     // Update main statistics
     document.getElementById('storageUsed').textContent = `${storageKB} KB`;
     document.getElementById('registeredCount').textContent = stats.registeredCount;
-    document.getElementById('onlineCount').textContent = stats.onlineCount;
+    
+    // Update user types breakdown
+    document.getElementById('userTypes').textContent = `${stats.totalOnline} Online`;
+    document.getElementById('userBreakdown').innerHTML = `
+        Registered: ${stats.registeredOnline}<br>
+        Temporary: ${stats.temporaryOnline}
+    `;
+    
     document.getElementById('messageCount').textContent = stats.messageCount;
     
     // Update room statistics
@@ -1496,7 +1518,8 @@ function updateUsageStatisticsUI(stats, storageKB) {
 function showUsageError() {
     document.getElementById('storageUsed').textContent = 'Error';
     document.getElementById('registeredCount').textContent = 'Error';
-    document.getElementById('onlineCount').textContent = 'Error';
+    document.getElementById('userTypes').textContent = 'Error';
+    document.getElementById('userBreakdown').textContent = '';
     document.getElementById('messageCount').textContent = 'Error';
     
     const roomStatsContainer = document.getElementById('roomStats');
