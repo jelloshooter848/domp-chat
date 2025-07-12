@@ -261,9 +261,8 @@ function loadRoomMessages() {
             database.ref(`messages/${currentRoom}`).limitToLast(50).once('value', (snapshot) => {
                 snapshot.forEach((childSnapshot) => {
                     const message = childSnapshot.val();
-                    if (message.username !== username) {
-                        displayMessage(message, false);
-                    }
+                    const isSent = message.username === username;
+                    displayMessage(message, isSent);
                 });
             });
         }

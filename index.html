@@ -27,6 +27,15 @@
             width: 90%;
             max-width: 500px;
             height: 80vh;
+            max-height: 80vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        #chatArea {
+            height: 100%;
             display: flex;
             flex-direction: column;
             overflow: hidden;
@@ -39,6 +48,7 @@
             text-align: center;
             font-size: 1.2em;
             font-weight: bold;
+            flex-shrink: 0;
         }
 
         .messages-container {
@@ -46,6 +56,8 @@
             padding: 20px;
             overflow-y: auto;
             background: #f8f9fa;
+            min-height: 0;
+            max-height: calc(100% - 200px);
         }
 
         .message {
@@ -54,6 +66,8 @@
             border-radius: 18px;
             max-width: 80%;
             word-wrap: break-word;
+            word-break: break-word;
+            overflow-wrap: break-word;
         }
 
         .message.sent {
@@ -80,6 +94,7 @@
             border-top: 1px solid #e9ecef;
             display: flex;
             gap: 10px;
+            flex-shrink: 0;
         }
 
         .name-input {
@@ -162,6 +177,7 @@
             display: flex;
             gap: 10px;
             overflow-x: auto;
+            flex-shrink: 0;
         }
 
         .room-button {
@@ -337,7 +353,8 @@
             border-radius: 15px;
             font-size: 0.9em;
             cursor: pointer;
-            margin-bottom: 10px;
+            margin: 10px 20px;
+            flex-shrink: 0;
         }
 
         .back-button:hover {
