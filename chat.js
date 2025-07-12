@@ -43,7 +43,7 @@ const rooms = {
     movies: '🎬 Movies'
 };
 
-function startChat() {
+function startChat(isAutoLogin = false) {
     const usernameInput = document.getElementById('usernameInput');
     const setupDiv = document.getElementById('setup');
     const chatArea = document.getElementById('chatArea');
@@ -51,22 +51,31 @@ function startChat() {
     username = usernameInput.value.trim();
     
     if (username === '') {
-        alert('Please enter your name! 😊');
+        if (!isAutoLogin) {
+            alert('Please enter your name! 😊');
+        }
         return;
     }
     
     if (isFirebaseEnabled) {
-        checkUsernameAndJoin();
+        checkUsernameAndJoin(isAutoLogin);
     } else {
-        localUsernameCheck();
+        localUsernameCheck(isAutoLogin);
     }
     
-    function localUsernameCheck() {
+    function localUsernameCheck(isAutoLogin = false) {
         loadCurrentUsernames();
         
         if (currentUsernames.includes(username.toLowerCase())) {
-            alert(`Sorry, the name "${username}" is already taken! Please choose a different name. 😔`);
-            return;
+            if (isAutoLogin) {
+                // Auto-login failed, clear saved username and show login
+                localStorage.removeItem('chatUsername');
+                showNotification(`Username "${username}" is taken. Please choose a different name.`, 'error');
+                return;
+            } else {
+                alert(`Sorry, the name "${username}" is already taken! Please choose a different name. 😔`);
+                return;
+            }
         }
         
         currentUsernames.push(username.toLowerCase());
@@ -74,14 +83,21 @@ function startChat() {
         completeSetup();
     }
     
-    function checkUsernameAndJoin() {
+    function checkUsernameAndJoin(isAutoLogin = false) {
         database.ref('users').once('value', (snapshot) => {
             const users = snapshot.val() || {};
             const usernames = Object.values(users).map(user => user.username.toLowerCase());
             
             if (usernames.includes(username.toLowerCase())) {
-                alert(`Sorry, the name "${username}" is already taken! Please choose a different name. 😔`);
-                return;
+                if (isAutoLogin) {
+                    // Auto-login failed, clear saved username and show login
+                    localStorage.removeItem('chatUsername');
+                    showNotification(`Username "${username}" is taken. Please choose a different name.`, 'error');
+                    return;
+                } else {
+                    alert(`Sorry, the name "${username}" is already taken! Please choose a different name. 😔`);
+                    return;
+                }
             }
             
             // Add user to Firebase
@@ -102,6 +118,9 @@ function startChat() {
     }
     
     function completeSetup() {
+        // Save username to localStorage on successful login
+        localStorage.setItem('chatUsername', username);
+        
         setupDiv.classList.add('hidden');
         chatArea.classList.remove('hidden');
         
@@ -112,11 +131,22 @@ function startChat() {
         document.getElementById('messageInput').focus();
         
         // Initialize online users list
+        const savedUsername = localStorage.getItem('chatUsername');
+        const isReturningUser = savedUsername === username;
+        
         if (isFirebaseEnabled) {
-            showNotification(`Connected to live chat! 🌐`, 'success');
+            if (isReturningUser) {
+                showNotification(`Welcome back, ${username}! 🌐`, 'success');
+            } else {
+                showNotification(`Connected to live chat! 🌐`, 'success');
+            }
             // Firebase listener will update the list automatically
         } else {
-            showNotification(`Running in local mode 💻`, 'info');
+            if (isReturningUser) {
+                showNotification(`Welcome back, ${username}! 💻`, 'info');
+            } else {
+                showNotification(`Running in local mode 💻`, 'info');
+            }
             updateOnlineUsersList({}); // Initialize local mode display
         }
     }
@@ -436,6 +466,36 @@ function setupPrivateChat() {
             }
         });
     }
+    
+    // Setup logout button
+    const logoutBtn = document.getElementById('logoutBtn');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', logout);
+    }
+}
+
+function logout() {
+    if (confirm('Are you sure you want to logout? You\'ll need to enter your username again.')) {
+        // Clear saved username
+        localStorage.removeItem('chatUsername');
+        
+        // Release current session
+        releaseUsername();
+        
+        // Reset to login screen
+        document.getElementById('chatArea').classList.add('hidden');
+        document.getElementById('setup').classList.remove('hidden');
+        document.getElementById('usernameInput').value = '';
+        document.getElementById('usernameInput').focus();
+        
+        // Reset variables
+        username = '';
+        currentRoom = 'general';
+        isPrivateChat = false;
+        privateChatFriend = '';
+        
+        showNotification('Logged out successfully', 'info');
+    }
 }
 
 function sendPrivateRequest(friendName) {
@@ -666,6 +726,7 @@ function saveCurrentUsernames() {
 function releaseUsername() {
     if (isFirebaseEnabled && userPresenceRef) {
         userPresenceRef.remove();
+        userPresenceRef = null;
     } else if (username) {
         const index = currentUsernames.indexOf(username.toLowerCase());
         if (index > -1) {
@@ -693,7 +754,23 @@ document.getElementById('messageInput').addEventListener('keypress', function(e)
 
 window.addEventListener('load', function() {
     document.getElementById('privateRequestModal').classList.add('hidden');
+    
+    // Try to auto-login with saved username
+    tryAutoLogin();
 });
+
+function tryAutoLogin() {
+    const savedUsername = localStorage.getItem('chatUsername');
+    if (savedUsername) {
+        document.getElementById('usernameInput').value = savedUsername;
+        // Show loading message
+        showNotification('Reconnecting as ' + savedUsername + '...', 'info');
+        // Attempt to login automatically
+        setTimeout(() => {
+            startChat(true); // true indicates auto-login attempt
+        }, 500);
+    }
+}
 
 // Release username when user leaves
 window.addEventListener('beforeunload', function() {

@@ -143,7 +143,7 @@
         }
         
         .online-toggle {
-            background: #28a745;
+            background: #6f42c1;
             color: white;
             border: none;
             padding: 6px 12px;
@@ -154,7 +154,7 @@
         }
         
         .online-toggle:hover {
-            background: #218838;
+            background: #5a32a3;
         }
         
         .close-online {
@@ -181,11 +181,21 @@
         .chat-header {
             background: #4a90e2;
             color: white;
-            padding: 20px;
+            padding: 15px 20px;
             text-align: center;
+            flex-shrink: 0;
+        }
+        
+        .chat-title {
             font-size: 1.2em;
             font-weight: bold;
-            flex-shrink: 0;
+            margin-bottom: 10px;
+        }
+        
+        .current-room {
+            font-size: 0.9em;
+            opacity: 0.8;
+            margin-bottom: 15px;
         }
 
         .messages-container {
@@ -338,33 +348,47 @@
             color: white;
         }
 
-        .current-room {
-            font-size: 0.9em;
-            opacity: 0.8;
-        }
 
         .header-controls {
             display: flex;
-            justify-content: space-between;
+            justify-content: center;
             align-items: center;
-            width: 100%;
+            gap: 8px;
+            flex-wrap: wrap;
         }
 
         .private-chat-btn {
             background: #28a745;
             color: white;
             border: none;
-            padding: 8px 16px;
-            border-radius: 15px;
-            font-size: 0.9em;
+            padding: 6px 12px;
+            border-radius: 12px;
+            font-size: 0.8em;
             cursor: pointer;
             display: flex;
             align-items: center;
-            gap: 5px;
+            gap: 4px;
         }
 
         .private-chat-btn:hover {
             background: #218838;
+        }
+        
+        .logout-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        .logout-btn:hover {
+            background: #c82333;
         }
 
         .modal {
@@ -516,15 +540,12 @@
 
         <div id="chatArea" class="hidden">
             <div class="chat-header">
+                <div class="chat-title">🗨️ Friend Chat App</div>
+                <div class="current-room" id="currentRoomDisplay"></div>
                 <div class="header-controls">
-                    <div>
-                        🗨️ Friend Chat App
-                        <div class="current-room" id="currentRoomDisplay"></div>
-                    </div>
-                    <div style="display: flex; gap: 8px; align-items: center;">
-                        <button id="onlineToggle" class="online-toggle">👥 <span id="mobileOnlineCount">0</span></button>
-                        <button id="privateChatBtn" class="private-chat-btn">💬 Private</button>
-                    </div>
+                    <button id="onlineToggle" class="online-toggle">👥 <span id="mobileOnlineCount">0</span></button>
+                    <button id="privateChatBtn" class="private-chat-btn">💬 Private</button>
+                    <button id="logoutBtn" class="logout-btn">🚪 Logout</button>
                 </div>
             </div>
             
