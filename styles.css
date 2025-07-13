@@ -1039,6 +1039,104 @@ body.pwa-mode button {
     font-size: 0.8em;
 }
 
+.auto-delete-settings {
+    margin-top: 15px;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #e9ecef;
+}
+
+.storage-option {
+    margin-bottom: 15px;
+}
+
+.storage-option label {
+    display: block;
+    font-weight: 500;
+    margin-bottom: 5px;
+    color: #333;
+}
+
+.storage-dropdown {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    background: white;
+    font-size: 0.9em;
+    color: #333;
+}
+
+.storage-dropdown:focus {
+    outline: none;
+    border-color: #4a90e2;
+}
+
+.storage-info {
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    padding: 15px;
+}
+
+.storage-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 15px;
+    font-size: 0.9em;
+}
+
+.storage-label {
+    font-weight: 500;
+    color: #333;
+}
+
+.storage-value {
+    font-weight: bold;
+    color: #4a90e2;
+}
+
+.storage-limit {
+    color: #666;
+}
+
+.storage-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.storage-check-btn {
+    background: #17a2b8;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 0.85em;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.storage-check-btn:hover {
+    background: #138496;
+}
+
+.storage-cleanup-btn {
+    background: #ffc107;
+    color: #333;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 0.85em;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.storage-cleanup-btn:hover {
+    background: #e0a800;
+}
+
 .user-summary {
     background: #f8f9fa;
     border-radius: 12px;

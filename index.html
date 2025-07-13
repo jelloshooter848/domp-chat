@@ -307,10 +307,47 @@
                     </div>
                     
                     <div class="settings-section">
+                        <h5>Storage Management</h5>
+                        <div class="setting-item">
+                            <div class="setting-info">
+                                <div class="setting-label">Auto-Delete Old Messages</div>
+                                <div class="setting-description">Automatically delete oldest messages when database storage reaches the specified threshold. Helps prevent storage limits from being exceeded.</div>
+                            </div>
+                            <label class="toggle-label">
+                                <input type="checkbox" id="autoDeleteToggle" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                        
+                        <div id="autoDeleteSettings" class="auto-delete-settings">
+                            <div class="storage-option">
+                                <label for="storageThreshold">Delete messages when storage reaches:</label>
+                                <select id="storageThreshold" class="storage-dropdown">
+                                    <option value="70">70% of limit</option>
+                                    <option value="80" selected>80% of limit</option>
+                                    <option value="90">90% of limit</option>
+                                </select>
+                            </div>
+                            
+                            <div class="storage-info">
+                                <div class="storage-status">
+                                    <span class="storage-label">Current Usage:</span>
+                                    <span id="currentStorageUsage" class="storage-value">Loading...</span>
+                                    <span class="storage-limit">/ 1 GB</span>
+                                </div>
+                                <div class="storage-actions">
+                                    <button id="checkStorageBtn" class="storage-check-btn">📊 Check Storage</button>
+                                    <button id="cleanupNowBtn" class="storage-cleanup-btn">🧹 Cleanup Now</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="settings-section">
                         <h5>Future Settings</h5>
                         <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; text-align: center; color: #666;">
                             🚧 Under Construction 🚧<br>
-                            Coming soon: Message retention, backup/restore, space management
+                            Coming soon: Welcome message customization, theme colors, private chat controls
                         </div>
                     </div>
                 </div>

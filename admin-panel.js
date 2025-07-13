@@ -128,6 +128,34 @@ function setupAdminPanel() {
         purgeInterval.addEventListener('change', saveAutoPurgeSettings);
     }
     
+    // Setup storage management functionality
+    const autoDeleteToggle = document.getElementById('autoDeleteToggle');
+    if (autoDeleteToggle) {
+        loadStorageSettings();
+        
+        autoDeleteToggle.addEventListener('change', (e) => {
+            const isEnabled = e.target.checked;
+            toggleStorageSettings(isEnabled);
+            saveStorageSettings();
+            console.log(`Auto-delete messages ${isEnabled ? 'enabled' : 'disabled'}`);
+        });
+    }
+    
+    const checkStorageBtn = document.getElementById('checkStorageBtn');
+    if (checkStorageBtn) {
+        checkStorageBtn.addEventListener('click', updateStorageDisplay);
+    }
+    
+    const cleanupNowBtn = document.getElementById('cleanupNowBtn');
+    if (cleanupNowBtn) {
+        cleanupNowBtn.addEventListener('click', manualStorageCleanup);
+    }
+    
+    const storageThreshold = document.getElementById('storageThreshold');
+    if (storageThreshold) {
+        storageThreshold.addEventListener('change', saveStorageSettings);
+    }
+    
     // Load initial statistics when admin panel opens
     if (isAdmin) {
         loadUsageStatistics();
@@ -196,6 +224,11 @@ function loadUsageStatistics() {
         
         // Update UI
         updateUsageStatisticsUI(stats, storageKB);
+        
+        // Also update storage display in settings if the function exists
+        if (typeof updateStorageDisplay === 'function') {
+            updateStorageDisplay();
+        }
         
     }).catch(error => {
         console.error('Error loading usage statistics:', error);
@@ -1320,4 +1353,293 @@ function executePurge() {
             alert('Failed to purge users. Please try again.');
         }
     }
+}
+
+// Storage Management Functionality
+let autoDeleteEnabled = true;
+let storageThresholdPercent = 80;
+const STORAGE_LIMIT_GB = 1;
+const STORAGE_LIMIT_BYTES = STORAGE_LIMIT_GB * 1024 * 1024 * 1024;
+
+function loadStorageSettings() {
+    if (isFirebaseEnabled) {
+        // Load from Firebase
+        database.ref('adminSettings/storageManagement').once('value')
+            .then((snapshot) => {
+                const settings = snapshot.val() || {};
+                autoDeleteEnabled = settings.enabled !== false; // Default to true
+                storageThresholdPercent = settings.threshold || 80;
+                updateStorageUI();
+                updateStorageDisplay();
+            })
+            .catch((error) => {
+                console.log('Could not load storage settings from Firebase:', error);
+                updateStorageUI();
+                updateStorageDisplay();
+            });
+    } else {
+        // Load from localStorage
+        try {
+            const settings = localStorage.getItem('storageSettings');
+            if (settings) {
+                const parsed = JSON.parse(settings);
+                autoDeleteEnabled = parsed.enabled !== false;
+                storageThresholdPercent = parsed.threshold || 80;
+            }
+            updateStorageUI();
+            updateStorageDisplay();
+        } catch (e) {
+            console.log('Could not load storage settings from localStorage:', e);
+            updateStorageUI();
+            updateStorageDisplay();
+        }
+    }
+}
+
+function saveStorageSettings() {
+    // Get current values from UI
+    const toggle = document.getElementById('autoDeleteToggle');
+    const threshold = document.getElementById('storageThreshold');
+    
+    if (toggle) autoDeleteEnabled = toggle.checked;
+    if (threshold) storageThresholdPercent = parseInt(threshold.value);
+    
+    const settings = {
+        enabled: autoDeleteEnabled,
+        threshold: storageThresholdPercent,
+        lastUpdated: Date.now()
+    };
+    
+    if (isFirebaseEnabled) {
+        // Save to Firebase
+        database.ref('adminSettings/storageManagement').set(settings)
+            .then(() => {
+                console.log('Storage settings saved to Firebase');
+            })
+            .catch((error) => {
+                console.error('Failed to save storage settings to Firebase:', error);
+            });
+    } else {
+        // Save to localStorage
+        try {
+            localStorage.setItem('storageSettings', JSON.stringify(settings));
+            console.log('Storage settings saved to localStorage');
+        } catch (e) {
+            console.error('Failed to save storage settings to localStorage:', e);
+        }
+    }
+}
+
+function updateStorageUI() {
+    const toggle = document.getElementById('autoDeleteToggle');
+    const threshold = document.getElementById('storageThreshold');
+    
+    if (toggle) {
+        toggle.checked = autoDeleteEnabled;
+    }
+    
+    if (threshold) {
+        threshold.value = storageThresholdPercent.toString();
+    }
+    
+    toggleStorageSettings(autoDeleteEnabled);
+}
+
+function toggleStorageSettings(show) {
+    const autoDeleteSettings = document.getElementById('autoDeleteSettings');
+    if (autoDeleteSettings) {
+        if (show) {
+            autoDeleteSettings.classList.remove('hidden');
+        } else {
+            autoDeleteSettings.classList.add('hidden');
+        }
+    }
+}
+
+function updateStorageDisplay() {
+    if (!isFirebaseEnabled) {
+        // For localStorage mode, calculate approximate storage
+        calculateLocalStorageUsage();
+        return;
+    }
+    
+    // Calculate Firebase storage usage
+    Promise.all([
+        database.ref('registeredUsers').once('value'),
+        database.ref('messages').once('value')
+    ]).then(([registeredSnapshot, messagesSnapshot]) => {
+        
+        const registeredUsers = registeredSnapshot.val() || {};
+        const allMessages = messagesSnapshot.val() || {};
+        
+        // Calculate storage usage (same as in loadUsageStatistics)
+        const dataString = JSON.stringify({
+            registeredUsers,
+            messages: allMessages
+        });
+        const storageBytes = new Blob([dataString]).size;
+        const storageKB = (storageBytes / 1024).toFixed(2);
+        const storageMB = (storageBytes / (1024 * 1024)).toFixed(2);
+        const storagePercentage = ((storageBytes / STORAGE_LIMIT_BYTES) * 100).toFixed(1);
+        
+        // Update storage display
+        const currentStorageUsage = document.getElementById('currentStorageUsage');
+        if (currentStorageUsage) {
+            if (storageBytes < 1024 * 1024) {
+                currentStorageUsage.textContent = `${storageKB} KB (${storagePercentage}%)`;
+            } else {
+                currentStorageUsage.textContent = `${storageMB} MB (${storagePercentage}%)`;
+            }
+            
+            // Color code based on usage
+            if (parseFloat(storagePercentage) >= 90) {
+                currentStorageUsage.style.color = '#dc3545'; // Red
+            } else if (parseFloat(storagePercentage) >= 70) {
+                currentStorageUsage.style.color = '#ffc107'; // Yellow
+            } else {
+                currentStorageUsage.style.color = '#4a90e2'; // Blue
+            }
+        }
+        
+        // Check if cleanup is needed
+        if (autoDeleteEnabled && parseFloat(storagePercentage) >= storageThresholdPercent) {
+            console.log(`Storage threshold reached (${storagePercentage}% >= ${storageThresholdPercent}%), triggering automatic cleanup...`);
+            performStorageCleanup(false); // Automatic cleanup
+        }
+        
+    }).catch(error => {
+        console.error('Error calculating storage usage:', error);
+        const currentStorageUsage = document.getElementById('currentStorageUsage');
+        if (currentStorageUsage) {
+            currentStorageUsage.textContent = 'Error calculating';
+            currentStorageUsage.style.color = '#dc3545';
+        }
+    });
+}
+
+function calculateLocalStorageUsage() {
+    try {
+        // Estimate localStorage usage
+        let totalSize = 0;
+        for (let key in localStorage) {
+            if (localStorage.hasOwnProperty(key)) {
+                totalSize += localStorage[key].length + key.length;
+            }
+        }
+        
+        const storageKB = (totalSize / 1024).toFixed(2);
+        const storageMB = (totalSize / (1024 * 1024)).toFixed(2);
+        const storagePercentage = ((totalSize / (5 * 1024 * 1024)) * 100).toFixed(1); // Assume 5MB localStorage limit
+        
+        const currentStorageUsage = document.getElementById('currentStorageUsage');
+        if (currentStorageUsage) {
+            if (totalSize < 1024 * 1024) {
+                currentStorageUsage.textContent = `${storageKB} KB (${storagePercentage}%)`;
+            } else {
+                currentStorageUsage.textContent = `${storageMB} MB (${storagePercentage}%)`;
+            }
+            currentStorageUsage.style.color = '#4a90e2';
+        }
+    } catch (e) {
+        console.error('Error calculating localStorage usage:', e);
+        const currentStorageUsage = document.getElementById('currentStorageUsage');
+        if (currentStorageUsage) {
+            currentStorageUsage.textContent = 'Error calculating';
+            currentStorageUsage.style.color = '#dc3545';
+        }
+    }
+}
+
+function manualStorageCleanup() {
+    if (!isAdmin) return;
+    
+    if (!confirm(`⚠️ This will delete the oldest messages to free up storage space.\n\nAre you sure you want to proceed with manual cleanup?`)) {
+        return;
+    }
+    
+    performStorageCleanup(true); // Manual cleanup
+}
+
+function performStorageCleanup(isManual = false) {
+    if (!isFirebaseEnabled) {
+        if (isManual) {
+            alert('Storage cleanup is not available in localStorage mode.');
+        }
+        return;
+    }
+    
+    console.log(`Performing ${isManual ? 'manual' : 'automatic'} storage cleanup...`);
+    
+    // Get all messages with timestamps
+    database.ref('messages').once('value')
+        .then((snapshot) => {
+            const allMessages = snapshot.val() || {};
+            const messagesList = [];
+            
+            // Collect all messages with room and timestamp info
+            Object.keys(allMessages).forEach(roomName => {
+                const roomMessages = allMessages[roomName] || {};
+                Object.keys(roomMessages).forEach(messageId => {
+                    const message = roomMessages[messageId];
+                    if (message && message.id) {
+                        messagesList.push({
+                            roomName: roomName,
+                            messageId: messageId,
+                            timestamp: message.id, // Using message.id as timestamp
+                            message: message
+                        });
+                    }
+                });
+            });
+            
+            if (messagesList.length === 0) {
+                if (isManual) {
+                    alert('No messages found to clean up.');
+                }
+                return;
+            }
+            
+            // Sort messages by timestamp (oldest first)
+            messagesList.sort((a, b) => a.timestamp - b.timestamp);
+            
+            // Delete oldest 20% of messages
+            const deleteCount = Math.max(1, Math.floor(messagesList.length * 0.2));
+            const toDelete = messagesList.slice(0, deleteCount);
+            
+            console.log(`Deleting ${deleteCount} oldest messages out of ${messagesList.length} total`);
+            
+            // Delete messages from Firebase
+            const deletePromises = toDelete.map(item => 
+                database.ref(`messages/${item.roomName}/${item.messageId}`).remove()
+            );
+            
+            Promise.all(deletePromises)
+                .then(() => {
+                    console.log(`Successfully deleted ${deleteCount} old messages`);
+                    
+                    if (isManual) {
+                        alert(`✅ Successfully deleted ${deleteCount} old messages to free up space.`);
+                    }
+                    
+                    // Update storage display
+                    setTimeout(updateStorageDisplay, 1000); // Give Firebase time to update
+                    
+                    // Refresh usage statistics if visible
+                    if (typeof loadUsageStatistics === 'function') {
+                        setTimeout(loadUsageStatistics, 1000);
+                    }
+                })
+                .catch((error) => {
+                    console.error('Error during storage cleanup:', error);
+                    if (isManual) {
+                        alert('Some messages could not be deleted. Please check the console for details.');
+                    }
+                });
+        })
+        .catch((error) => {
+            console.error('Error loading messages for cleanup:', error);
+            if (isManual) {
+                alert('Failed to load messages for cleanup.');
+            }
+        });
 }
