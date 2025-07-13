@@ -910,6 +910,135 @@ body.pwa-mode button {
     background: #c82333;
 }
 
+.purge-settings {
+    margin-top: 15px;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #e9ecef;
+}
+
+.purge-option {
+    margin-bottom: 15px;
+}
+
+.purge-option label {
+    display: block;
+    font-weight: 500;
+    margin-bottom: 5px;
+    color: #333;
+}
+
+.purge-dropdown {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    background: white;
+    font-size: 0.9em;
+    color: #333;
+}
+
+.purge-dropdown:focus {
+    outline: none;
+    border-color: #4a90e2;
+}
+
+.purge-actions {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.purge-preview-btn {
+    background: #6f42c1;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 0.85em;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.purge-preview-btn:hover {
+    background: #5a32a3;
+}
+
+.purge-execute-btn {
+    background: #dc3545;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 0.85em;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.purge-execute-btn:hover {
+    background: #c82333;
+}
+
+.purge-preview {
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    padding: 15px;
+}
+
+.preview-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.preview-header h6 {
+    margin: 0;
+    color: #4a90e2;
+    font-size: 0.9em;
+}
+
+.preview-count {
+    background: #dc3545;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.75em;
+    font-weight: bold;
+}
+
+.preview-list {
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.preview-user {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid #f8f9fa;
+    font-size: 0.85em;
+}
+
+.preview-user:last-child {
+    border-bottom: none;
+}
+
+.preview-user-name {
+    font-weight: 500;
+    color: #333;
+}
+
+.preview-user-info {
+    color: #666;
+    font-size: 0.8em;
+}
+
 .user-summary {
     background: #f8f9fa;
     border-radius: 12px;

@@ -100,6 +100,34 @@ function setupAdminPanel() {
         addRoomBtn.addEventListener('click', addRoom);
     }
     
+    // Setup auto-purge functionality
+    const autoPurgeToggle = document.getElementById('autoPurgeToggle');
+    if (autoPurgeToggle) {
+        loadAutoPurgeSettings();
+        
+        autoPurgeToggle.addEventListener('change', (e) => {
+            const isEnabled = e.target.checked;
+            togglePurgeSettings(isEnabled);
+            saveAutoPurgeSettings();
+            console.log(`Auto-purge ${isEnabled ? 'enabled' : 'disabled'}`);
+        });
+    }
+    
+    const previewPurgeBtn = document.getElementById('previewPurgeBtn');
+    if (previewPurgeBtn) {
+        previewPurgeBtn.addEventListener('click', previewPurge);
+    }
+    
+    const executePurgeBtn = document.getElementById('executePurgeBtn');
+    if (executePurgeBtn) {
+        executePurgeBtn.addEventListener('click', executePurge);
+    }
+    
+    const purgeInterval = document.getElementById('purgeInterval');
+    if (purgeInterval) {
+        purgeInterval.addEventListener('change', saveAutoPurgeSettings);
+    }
+    
     // Load initial statistics when admin panel opens
     if (isAdmin) {
         loadUsageStatistics();
@@ -1005,6 +1033,291 @@ function resetRoom(roomId) {
         } catch (e) {
             console.error('Error resetting room in localStorage:', e);
             alert('Failed to reset room. Please try again.');
+        }
+    }
+}
+
+// Auto-Purge Functionality
+let autoPurgeEnabled = false;
+let purgeIntervalDays = 90;
+
+function loadAutoPurgeSettings() {
+    if (isFirebaseEnabled) {
+        // Load from Firebase
+        database.ref('adminSettings/autoPurge').once('value')
+            .then((snapshot) => {
+                const settings = snapshot.val() || {};
+                autoPurgeEnabled = settings.enabled || false;
+                purgeIntervalDays = settings.intervalDays || 90;
+                updateAutoPurgeUI();
+            })
+            .catch((error) => {
+                console.log('Could not load auto-purge settings from Firebase:', error);
+                updateAutoPurgeUI();
+            });
+    } else {
+        // Load from localStorage
+        try {
+            const settings = localStorage.getItem('autoPurgeSettings');
+            if (settings) {
+                const parsed = JSON.parse(settings);
+                autoPurgeEnabled = parsed.enabled || false;
+                purgeIntervalDays = parsed.intervalDays || 90;
+            }
+            updateAutoPurgeUI();
+        } catch (e) {
+            console.log('Could not load auto-purge settings from localStorage:', e);
+            updateAutoPurgeUI();
+        }
+    }
+}
+
+function saveAutoPurgeSettings() {
+    // Get current values from UI
+    const toggle = document.getElementById('autoPurgeToggle');
+    const interval = document.getElementById('purgeInterval');
+    
+    if (toggle) autoPurgeEnabled = toggle.checked;
+    if (interval) purgeIntervalDays = parseInt(interval.value);
+    
+    const settings = {
+        enabled: autoPurgeEnabled,
+        intervalDays: purgeIntervalDays,
+        lastUpdated: Date.now()
+    };
+    
+    if (isFirebaseEnabled) {
+        // Save to Firebase
+        database.ref('adminSettings/autoPurge').set(settings)
+            .then(() => {
+                console.log('Auto-purge settings saved to Firebase');
+            })
+            .catch((error) => {
+                console.error('Failed to save auto-purge settings to Firebase:', error);
+            });
+    } else {
+        // Save to localStorage
+        try {
+            localStorage.setItem('autoPurgeSettings', JSON.stringify(settings));
+            console.log('Auto-purge settings saved to localStorage');
+        } catch (e) {
+            console.error('Failed to save auto-purge settings to localStorage:', e);
+        }
+    }
+}
+
+function updateAutoPurgeUI() {
+    const toggle = document.getElementById('autoPurgeToggle');
+    const interval = document.getElementById('purgeInterval');
+    
+    if (toggle) {
+        toggle.checked = autoPurgeEnabled;
+    }
+    
+    if (interval) {
+        interval.value = purgeIntervalDays.toString();
+    }
+    
+    togglePurgeSettings(autoPurgeEnabled);
+}
+
+function togglePurgeSettings(show) {
+    const purgeSettings = document.getElementById('purgeSettings');
+    if (purgeSettings) {
+        if (show) {
+            purgeSettings.classList.remove('hidden');
+        } else {
+            purgeSettings.classList.add('hidden');
+            // Also hide preview if settings are hidden
+            const purgePreview = document.getElementById('purgePreview');
+            if (purgePreview) {
+                purgePreview.classList.add('hidden');
+            }
+        }
+    }
+}
+
+function previewPurge() {
+    if (!isAdmin) return;
+    
+    console.log('Generating purge preview...');
+    
+    const interval = document.getElementById('purgeInterval');
+    const days = interval ? parseInt(interval.value) : purgeIntervalDays;
+    
+    if (isFirebaseEnabled) {
+        // Preview from Firebase
+        database.ref('registeredUsers').once('value')
+            .then((snapshot) => {
+                const users = snapshot.val() || {};
+                const toDelete = getInactiveUsers(users, days);
+                displayPurgePreview(toDelete);
+            })
+            .catch((error) => {
+                console.error('Error loading users for preview:', error);
+                alert('Failed to load user data for preview.');
+            });
+    } else {
+        // Preview from localStorage
+        try {
+            const users = getRegisteredUsers();
+            const toDelete = getInactiveUsers(users, days);
+            displayPurgePreview(toDelete);
+        } catch (e) {
+            console.error('Error loading users for preview:', e);
+            alert('Failed to load user data for preview.');
+        }
+    }
+}
+
+function getInactiveUsers(users, days) {
+    const cutoffDate = Date.now() - (days * 24 * 60 * 60 * 1000);
+    const inactiveUsers = [];
+    
+    Object.entries(users).forEach(([username, userData]) => {
+        // Skip admin user
+        if (username === ADMIN_USERNAME.toLowerCase()) return;
+        
+        // Skip if userData is missing or corrupted
+        if (!userData || typeof userData !== 'object') return;
+        
+        // Determine last activity date
+        const lastSeen = userData.lastSeen || userData.registeredDate || 0;
+        
+        if (lastSeen < cutoffDate) {
+            const daysSinceActivity = Math.floor((Date.now() - lastSeen) / (24 * 60 * 60 * 1000));
+            inactiveUsers.push({
+                username: userData.username || username,
+                lastSeen: lastSeen,
+                daysSinceActivity: daysSinceActivity,
+                registeredDate: userData.registeredDate || 0
+            });
+        }
+    });
+    
+    // Sort by days since activity (most inactive first)
+    inactiveUsers.sort((a, b) => b.daysSinceActivity - a.daysSinceActivity);
+    
+    return inactiveUsers;
+}
+
+function displayPurgePreview(inactiveUsers) {
+    const purgePreview = document.getElementById('purgePreview');
+    const previewCount = document.getElementById('previewCount');
+    const previewList = document.getElementById('previewList');
+    
+    if (!purgePreview || !previewCount || !previewList) return;
+    
+    purgePreview.classList.remove('hidden');
+    previewCount.textContent = `${inactiveUsers.length} users`;
+    
+    if (inactiveUsers.length === 0) {
+        previewList.innerHTML = '<div style="text-align: center; color: #666; padding: 20px;">No inactive users found for the selected time period.</div>';
+        return;
+    }
+    
+    previewList.innerHTML = '';
+    
+    inactiveUsers.forEach(user => {
+        const userDiv = document.createElement('div');
+        userDiv.className = 'preview-user';
+        
+        const lastSeenText = user.lastSeen ? new Date(user.lastSeen).toLocaleDateString() : 'Unknown';
+        
+        userDiv.innerHTML = `
+            <div class="preview-user-name">${user.username}</div>
+            <div class="preview-user-info">Inactive for ${user.daysSinceActivity} days (last seen: ${lastSeenText})</div>
+        `;
+        
+        previewList.appendChild(userDiv);
+    });
+}
+
+function executePurge() {
+    if (!isAdmin) return;
+    
+    const interval = document.getElementById('purgeInterval');
+    const days = interval ? parseInt(interval.value) : purgeIntervalDays;
+    
+    if (!confirm(`⚠️ WARNING: This will permanently delete all users who have been inactive for more than ${days} days.\n\nAdmin accounts are preserved. This action cannot be undone.\n\nAre you sure you want to proceed?`)) {
+        return;
+    }
+    
+    // Double confirmation
+    const confirmText = prompt(`Final confirmation: Type "PURGE" (all caps) to confirm deletion of inactive users:`);
+    if (confirmText !== 'PURGE') {
+        alert('Purge cancelled. You must type "PURGE" exactly to confirm.');
+        return;
+    }
+    
+    console.log(`Executing purge for users inactive longer than ${days} days...`);
+    
+    if (isFirebaseEnabled) {
+        // Purge from Firebase
+        database.ref('registeredUsers').once('value')
+            .then((snapshot) => {
+                const users = snapshot.val() || {};
+                const toDelete = getInactiveUsers(users, days);
+                
+                if (toDelete.length === 0) {
+                    alert('No inactive users found to purge.');
+                    return;
+                }
+                
+                // Delete users from Firebase
+                const deletePromises = toDelete.map(user => 
+                    database.ref(`registeredUsers/${user.username.toLowerCase()}`).remove()
+                );
+                
+                Promise.all(deletePromises)
+                    .then(() => {
+                        console.log(`Successfully purged ${toDelete.length} inactive users`);
+                        alert(`✅ Successfully purged ${toDelete.length} inactive users.`);
+                        
+                        // Refresh user management list
+                        loadUserManagement();
+                        
+                        // Refresh preview
+                        previewPurge();
+                    })
+                    .catch((error) => {
+                        console.error('Error during purge:', error);
+                        alert('Some users could not be deleted. Please check the console for details.');
+                    });
+            })
+            .catch((error) => {
+                console.error('Error loading users for purge:', error);
+                alert('Failed to load user data for purge.');
+            });
+    } else {
+        // Purge from localStorage
+        try {
+            const users = getRegisteredUsers();
+            const toDelete = getInactiveUsers(users, days);
+            
+            if (toDelete.length === 0) {
+                alert('No inactive users found to purge.');
+                return;
+            }
+            
+            // Delete users from localStorage
+            toDelete.forEach(user => {
+                delete users[user.username.toLowerCase()];
+            });
+            
+            localStorage.setItem('registeredUsers', JSON.stringify(users));
+            
+            console.log(`Successfully purged ${toDelete.length} inactive users`);
+            alert(`✅ Successfully purged ${toDelete.length} inactive users.`);
+            
+            // Refresh user management list
+            loadUserManagement();
+            
+            // Refresh preview
+            previewPurge();
+        } catch (e) {
+            console.error('Error during purge:', e);
+            alert('Failed to purge users. Please try again.');
         }
     }
 }

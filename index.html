@@ -265,10 +265,52 @@
                     </div>
                     
                     <div class="settings-section">
+                        <h5>User Management</h5>
+                        <div class="setting-item">
+                            <div class="setting-info">
+                                <div class="setting-label">Auto-Purge Inactive Users</div>
+                                <div class="setting-description">Automatically remove users who haven't logged in for a specified period. Admin accounts are always preserved.</div>
+                            </div>
+                            <label class="toggle-label">
+                                <input type="checkbox" id="autoPurgeToggle">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                        
+                        <div id="purgeSettings" class="purge-settings hidden">
+                            <div class="purge-option">
+                                <label for="purgeInterval">Purge users inactive for:</label>
+                                <select id="purgeInterval" class="purge-dropdown">
+                                    <option value="30">30 days</option>
+                                    <option value="60">60 days</option>
+                                    <option value="90" selected>90 days</option>
+                                    <option value="180">6 months</option>
+                                    <option value="365">1 year</option>
+                                </select>
+                            </div>
+                            
+                            <div class="purge-actions">
+                                <button id="previewPurgeBtn" class="purge-preview-btn">👁️ Preview Purge</button>
+                                <button id="executePurgeBtn" class="purge-execute-btn">🧹 Purge Now</button>
+                            </div>
+                            
+                            <div id="purgePreview" class="purge-preview hidden">
+                                <div class="preview-header">
+                                    <h6>Purge Preview</h6>
+                                    <span id="previewCount" class="preview-count">0 users</span>
+                                </div>
+                                <div id="previewList" class="preview-list">
+                                    <!-- Preview content will be populated here -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="settings-section">
                         <h5>Future Settings</h5>
                         <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; text-align: center; color: #666;">
                             🚧 Under Construction 🚧<br>
-                            Coming soon: User management, message retention, backup/restore
+                            Coming soon: Message retention, backup/restore, space management
                         </div>
                     </div>
                 </div>
