@@ -183,6 +183,19 @@ function setupAdminPanel() {
         resetWelcomeBtn.addEventListener('click', resetWelcomeSettings);
     }
     
+    // Setup private chat control
+    const privateChatToggle = document.getElementById('privateChatToggle');
+    if (privateChatToggle) {
+        loadPrivateChatSettings();
+        
+        privateChatToggle.addEventListener('change', (e) => {
+            const isEnabled = e.target.checked;
+            savePrivateChatSettings(isEnabled);
+            updatePrivateChatVisibility(isEnabled);
+            console.log(`Private chat ${isEnabled ? 'enabled' : 'disabled'}`);
+        });
+    }
+    
     // Load initial statistics when admin panel opens
     if (isAdmin) {
         loadUsageStatistics();
@@ -1857,6 +1870,110 @@ function loadAndApplyWelcomeSettings() {
             }
         } catch (e) {
             console.log('Could not load welcome settings from localStorage:', e);
+        }
+    }
+}
+
+// Private Chat Control
+let privateChatEnabled = true;
+
+function loadPrivateChatSettings() {
+    if (isFirebaseEnabled) {
+        // Load from Firebase
+        database.ref('adminSettings/privateChatEnabled').once('value')
+            .then((snapshot) => {
+                const setting = snapshot.val();
+                privateChatEnabled = setting !== null ? setting : true; // Default to true
+                updatePrivateChatToggle();
+                updatePrivateChatVisibility(privateChatEnabled);
+            })
+            .catch((error) => {
+                console.log('Could not load private chat setting from Firebase:', error);
+                privateChatEnabled = true; // Default to enabled
+                updatePrivateChatToggle();
+                updatePrivateChatVisibility(privateChatEnabled);
+            });
+    } else {
+        // Load from localStorage
+        try {
+            const setting = localStorage.getItem('privateChatEnabled');
+            privateChatEnabled = setting !== null ? JSON.parse(setting) : true; // Default to true
+            updatePrivateChatToggle();
+            updatePrivateChatVisibility(privateChatEnabled);
+        } catch (e) {
+            console.log('Could not load private chat setting from localStorage:', e);
+            privateChatEnabled = true; // Default to enabled
+            updatePrivateChatToggle();
+            updatePrivateChatVisibility(privateChatEnabled);
+        }
+    }
+}
+
+function savePrivateChatSettings(isEnabled) {
+    privateChatEnabled = isEnabled;
+    
+    if (isFirebaseEnabled) {
+        // Save to Firebase
+        database.ref('adminSettings/privateChatEnabled').set(isEnabled)
+            .then(() => {
+                console.log('Private chat setting saved to Firebase');
+            })
+            .catch((error) => {
+                console.error('Failed to save private chat setting to Firebase:', error);
+            });
+    } else {
+        // Save to localStorage
+        try {
+            localStorage.setItem('privateChatEnabled', JSON.stringify(isEnabled));
+            console.log('Private chat setting saved to localStorage');
+        } catch (e) {
+            console.error('Failed to save private chat setting to localStorage:', e);
+        }
+    }
+}
+
+function updatePrivateChatToggle() {
+    const toggle = document.getElementById('privateChatToggle');
+    if (toggle) {
+        toggle.checked = privateChatEnabled;
+    }
+}
+
+function updatePrivateChatVisibility(isEnabled) {
+    const privateChatBtn = document.getElementById('privateChatBtn');
+    if (privateChatBtn) {
+        if (isEnabled) {
+            privateChatBtn.style.display = '';
+        } else {
+            privateChatBtn.style.display = 'none';
+        }
+    }
+}
+
+// Function for chat.js to check if private chat is enabled
+function isPrivateChatEnabled() {
+    return privateChatEnabled;
+}
+
+// Function to load and apply private chat settings on app startup
+function loadAndApplyPrivateChatSettings() {
+    if (isFirebaseEnabled) {
+        database.ref('adminSettings/privateChatEnabled').once('value')
+            .then((snapshot) => {
+                const setting = snapshot.val();
+                privateChatEnabled = setting !== null ? setting : true; // Default to true
+                updatePrivateChatVisibility(privateChatEnabled);
+            })
+            .catch((error) => {
+                console.log('Could not load private chat setting from Firebase:', error);
+            });
+    } else {
+        try {
+            const setting = localStorage.getItem('privateChatEnabled');
+            privateChatEnabled = setting !== null ? JSON.parse(setting) : true; // Default to true
+            updatePrivateChatVisibility(privateChatEnabled);
+        } catch (e) {
+            console.log('Could not load private chat setting from localStorage:', e);
         }
     }
 }

@@ -701,6 +701,12 @@ function switchRoom(roomName) {
 }
 
 function startPrivateChat(friendName) {
+    // Check if private chat is enabled
+    if (typeof isPrivateChatEnabled === 'function' && !isPrivateChatEnabled()) {
+        alert('Private chat has been disabled by the administrator.');
+        return;
+    }
+    
     isPrivateChat = true;
     privateChatFriend = friendName;
     
@@ -808,6 +814,13 @@ function updateRoomSelector() {
 function setupPrivateChat() {
     document.getElementById('privateChatBtn').addEventListener('click', (e) => {
         e.preventDefault();
+        
+        // Check if private chat is enabled
+        if (typeof isPrivateChatEnabled === 'function' && !isPrivateChatEnabled()) {
+            alert('Private chat has been disabled by the administrator.');
+            return;
+        }
+        
         document.getElementById('privateRequestModal').classList.remove('hidden');
         document.getElementById('friendRequestInput').focus();
     });
@@ -815,6 +828,13 @@ function setupPrivateChat() {
     setupEmojiPicker();
     
     document.getElementById('sendRequest').addEventListener('click', () => {
+        // Check if private chat is enabled
+        if (typeof isPrivateChatEnabled === 'function' && !isPrivateChatEnabled()) {
+            alert('Private chat has been disabled by the administrator.');
+            document.getElementById('privateRequestModal').classList.add('hidden');
+            return;
+        }
+        
         const friendName = document.getElementById('friendRequestInput').value.trim();
         if (friendName && friendName !== username) {
             sendPrivateRequest(friendName);
@@ -1040,6 +1060,12 @@ function showFirebaseRequestNotification(request, requestKey) {
 }
 
 function acceptRequest(friendName, requestId) {
+    // Check if private chat is enabled
+    if (typeof isPrivateChatEnabled === 'function' && !isPrivateChatEnabled()) {
+        alert('Private chat has been disabled by the administrator.');
+        return;
+    }
+    
     const notification = document.querySelector(`[onclick*="${requestId}"]`).closest('.notification');
     if (notification) {
         notification.remove();
@@ -1053,6 +1079,12 @@ function acceptRequest(friendName, requestId) {
 }
 
 function acceptFirebaseRequest(friendName, requestKey) {
+    // Check if private chat is enabled
+    if (typeof isPrivateChatEnabled === 'function' && !isPrivateChatEnabled()) {
+        alert('Private chat has been disabled by the administrator.');
+        return;
+    }
+    
     const notification = document.querySelector(`[onclick*="${requestKey}"]`).closest('.notification');
     if (notification) {
         notification.remove();
@@ -1261,6 +1293,11 @@ window.addEventListener('load', function() {
     // Load and apply welcome message settings
     if (typeof loadAndApplyWelcomeSettings === 'function') {
         loadAndApplyWelcomeSettings();
+    }
+    
+    // Load and apply private chat settings
+    if (typeof loadAndApplyPrivateChatSettings === 'function') {
+        loadAndApplyPrivateChatSettings();
     }
     
     // Detect if running as installed PWA
