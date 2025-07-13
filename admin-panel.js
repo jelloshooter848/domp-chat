@@ -253,6 +253,12 @@ function processUserData(registeredUsers, onlineUsers) {
     Object.entries(registeredUsers).forEach(([username, userData]) => {
         if (username === ADMIN_USERNAME.toLowerCase()) return; // Skip admin
         
+        // Skip if userData is missing or corrupted
+        if (!userData || typeof userData !== 'object') {
+            console.warn(`Skipping user ${username} - missing or corrupted data`);
+            return;
+        }
+        
         const isOnline = onlineUsernames.includes(username);
         if (isOnline) registeredOnlineCount++;
         
@@ -272,8 +278,11 @@ function processUserData(registeredUsers, onlineUsers) {
             lastSeenText = formatLastSeen(lastSeenTimestamp);
         }
         
+        // Ensure we have a valid username
+        const displayUsername = userData.username || username;
+        
         userList.push({
-            username: userData.username,
+            username: displayUsername,
             registrationDate: registrationDate,
             isOnline: isOnline,
             lastSeen: lastSeenText,
@@ -341,6 +350,7 @@ function updateUserManagementUI(userData) {
         const banAction = user.banned 
             ? `<button class="unban-btn" onclick="unbanUser('${user.username}')">Unban</button>`
             : `<button class="ban-btn" onclick="banUser('${user.username}')">Ban</button>`;
+        const deleteAction = `<button class="delete-btn" onclick="deleteUser('${user.username}')" title="Delete user permanently">🗑️</button>`;
         
         userRow.className = `user-row ${user.banned ? 'banned-user' : ''}`;
         
@@ -355,6 +365,7 @@ function updateUserManagementUI(userData) {
             </div>
             <div class="user-actions">
                 ${banAction}
+                ${deleteAction}
             </div>
         `;
         
@@ -381,6 +392,32 @@ function banUser(username) {
         return;
     }
     
+    // Check if user is currently online - cannot ban online users
+    if (isFirebaseEnabled) {
+        database.ref('users').once('value')
+            .then((snapshot) => {
+                const onlineUsers = snapshot.val() || {};
+                const onlineUsernames = Object.values(onlineUsers).map(user => user.username && user.username.toLowerCase()).filter(Boolean);
+                
+                if (onlineUsernames.includes(username.toLowerCase())) {
+                    alert(`❌ Cannot ban "${username}" while they are currently online.\n\nPlease wait for the user to log off, then try again.`);
+                    return;
+                }
+                
+                // User is offline, proceed with banning
+                proceedWithUserBanning(username);
+            })
+            .catch((error) => {
+                console.error('Error checking online users:', error);
+                alert('Failed to check if user is online. Please try again.');
+            });
+    } else {
+        // For localStorage mode, we can't easily check online status, so proceed
+        proceedWithUserBanning(username);
+    }
+}
+
+function proceedWithUserBanning(username) {
     if (!confirm(`Are you sure you want to ban "${username}"? They will not be able to access the chat.`)) {
         return;
     }
@@ -465,6 +502,92 @@ function unbanUser(username) {
                 console.error('Error unbanning user:', e);
                 alert('Failed to unban user. Please try again.');
             }
+        }
+    }
+}
+
+// Delete user function
+function deleteUser(username) {
+    if (!isAdmin || !username) return;
+    
+    // Prevent admin from deleting themselves
+    if (username.toLowerCase() === ADMIN_USERNAME.toLowerCase()) {
+        alert('Cannot delete the admin user!');
+        return;
+    }
+    
+    // Check if user is currently online - cannot delete online users
+    if (isFirebaseEnabled) {
+        database.ref('users').once('value')
+            .then((snapshot) => {
+                const onlineUsers = snapshot.val() || {};
+                const onlineUsernames = Object.values(onlineUsers).map(user => user.username && user.username.toLowerCase()).filter(Boolean);
+                
+                if (onlineUsernames.includes(username.toLowerCase())) {
+                    alert(`❌ Cannot delete "${username}" while they are currently online.\n\nPlease wait for the user to log off, then try again.`);
+                    return;
+                }
+                
+                // User is offline, proceed with deletion
+                proceedWithUserDeletion(username);
+            })
+            .catch((error) => {
+                console.error('Error checking online users:', error);
+                alert('Failed to check if user is online. Please try again.');
+            });
+    } else {
+        // For localStorage mode, we can't easily check online status, so proceed
+        proceedWithUserDeletion(username);
+    }
+}
+
+function proceedWithUserDeletion(username) {
+    if (!confirm(`⚠️ WARNING: This will permanently delete "${username}" and all their data.\n\nThis action cannot be undone. Are you sure you want to delete this user?`)) {
+        return;
+    }
+    
+    // Double confirmation for extra safety
+    const confirmText = prompt(`Final confirmation: Type "DELETE" (all caps) to confirm you want to permanently remove "${username}"`);
+    if (confirmText !== 'DELETE') {
+        alert('Deletion cancelled. You must type "DELETE" exactly to confirm.');
+        return;
+    }
+    
+    if (isFirebaseEnabled) {
+        // Remove from registered users (user is confirmed offline)
+        database.ref(`registeredUsers/${username.toLowerCase()}`).remove()
+            .then(() => {
+                console.log(`User ${username} has been deleted`);
+                
+                // Refresh the list
+                loadUserManagement();
+                
+                // Show success message
+                alert(`✅ User "${username}" has been permanently deleted.`);
+            })
+            .catch((error) => {
+                console.error('Error deleting user:', error);
+                alert('Failed to delete user. Please try again.');
+            });
+    } else {
+        // Delete from localStorage
+        const registeredUsers = getRegisteredUsers();
+        if (registeredUsers[username.toLowerCase()]) {
+            delete registeredUsers[username.toLowerCase()];
+            
+            try {
+                localStorage.setItem('registeredUsers', JSON.stringify(registeredUsers));
+                console.log(`User ${username} has been deleted`);
+                loadUserManagement(); // Refresh the list
+                
+                // Show success message
+                alert(`✅ User "${username}" has been permanently deleted.`);
+            } catch (e) {
+                console.error('Error deleting user:', e);
+                alert('Failed to delete user. Please try again.');
+            }
+        } else {
+            alert('User not found.');
         }
     }
 }

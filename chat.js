@@ -484,6 +484,32 @@ function setupFirebaseListeners() {
         updateOnlineUsersList(snapshot.val() || {});
     });
     
+    // Monitor if current user gets banned (for non-temporary sessions)
+    if (!isTemporarySession && username) {
+        const currentUserRef = database.ref(`registeredUsers/${username.toLowerCase()}`);
+        let userBanMonitoringStarted = false;
+        
+        firebaseListeners.userBanListener = currentUserRef.on('value', (snapshot) => {
+            if (!userBanMonitoringStarted) {
+                // First call - just mark that monitoring has started
+                userBanMonitoringStarted = true;
+                return;
+            }
+            
+            // Only check for ban status changes (deletion of online users is now prevented)
+            if (snapshot.exists()) {
+                const userData = snapshot.val();
+                if (userData && userData.banned) {
+                    const bannedDate = userData.bannedDate ? new Date(userData.bannedDate).toLocaleDateString() : 'unknown date';
+                    console.log('Current user has been banned by admin - forcing logout');
+                    alert(`⚠️ Your account has been banned by an administrator.\nBanned on: ${bannedDate}\nBanned by: ${userData.bannedBy || 'admin'}\n\nYou will be logged out.`);
+                    logout();
+                }
+            }
+        });
+        firebaseListeners.currentUserRef = currentUserRef;
+    }
+    
     // Store references for cleanup
     firebaseListeners.privateMessageRef = privateRef;
     firebaseListeners.requestRef = requestRef;
@@ -521,6 +547,13 @@ function cleanupFirebaseListeners() {
         firebaseListeners.userRef.off('value', firebaseListeners.userListener);
         firebaseListeners.userListener = null;
         firebaseListeners.userRef = null;
+    }
+    
+    // Clean up user ban listener
+    if (firebaseListeners.currentUserRef && firebaseListeners.userBanListener) {
+        firebaseListeners.currentUserRef.off('value', firebaseListeners.userBanListener);
+        firebaseListeners.userBanListener = null;
+        firebaseListeners.currentUserRef = null;
     }
 }
 
