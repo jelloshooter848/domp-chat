@@ -67,11 +67,6 @@ python -m http.server 8000
 
 ## 📱 Admin Features
 
-### Access Admin Panel
-- **Username:** `admin`
-- **PIN:** `1234`
-- Click the "⚙️ Admin" button after logging in
-
 ### Admin Capabilities
 - **📊 Usage Stats** - Monitor storage, users, and messages
 - **👥 User Management** - View, ban, unban, and delete users
