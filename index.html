@@ -125,6 +125,7 @@
             <div class="admin-tabs">
                 <button class="admin-tab active" data-tab="usage">📊 Usage Stats</button>
                 <button class="admin-tab" data-tab="users">👥 Users</button>
+                <button class="admin-tab" data-tab="rooms">🏠 Rooms</button>
                 <button class="admin-tab" data-tab="messages">💬 Messages</button>
                 <button class="admin-tab" data-tab="settings">⚙️ Settings</button>
             </div>
@@ -208,6 +209,36 @@
                     </div>
                 </div>
                 
+                <div id="roomsTab" class="admin-tab-content hidden">
+                    <h4>🏠 Room Management</h4>
+                    
+                    <div class="settings-section">
+                        <h5>Current Rooms</h5>
+                        <div class="room-management">
+                            <div class="room-list" id="adminRoomList">
+                                <div class="room-list-header">
+                                    <span>Manage chat rooms:</span>
+                                    <button id="addRoomBtn" class="add-room-btn">+ Add Room</button>
+                                </div>
+                                <div id="roomListContainer">
+                                    Loading rooms...
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="settings-section">
+                        <h5>Room Actions</h5>
+                        <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; color: #666;">
+                            <strong>📝 Instructions:</strong><br>
+                            • <strong>Add Room:</strong> Create new chat rooms for different topics<br>
+                            • <strong>Reset:</strong> Clear all messages in a room (keeps the room)<br>
+                            • <strong>Delete:</strong> Permanently remove a room and all its messages<br><br>
+                            <strong>⚠️ Note:</strong> Room changes take effect immediately for all users.
+                        </div>
+                    </div>
+                </div>
+                
                 <div id="messagesTab" class="admin-tab-content hidden">
                     <h4>Message Moderation</h4>
                     <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; text-align: center; color: #666;">
@@ -237,7 +268,7 @@
                         <h5>Future Settings</h5>
                         <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; text-align: center; color: #666;">
                             🚧 Under Construction 🚧<br>
-                            Coming soon: Room management, message retention, backup/restore
+                            Coming soon: User management, message retention, backup/restore
                         </div>
                     </div>
                 </div>

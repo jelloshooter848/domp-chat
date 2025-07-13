@@ -34,7 +34,7 @@ let privateChatFriend = '';
 let currentUsernames = [];
 let userPresenceRef = null;
 
-const rooms = {
+let rooms = {
     general: '🏠 General',
     games: '🎮 Games',
     homework: '📚 Homework',
@@ -718,12 +718,91 @@ function setupRoomButtons() {
         loadMessages();
     }
     
-    document.querySelectorAll('.room-button').forEach(button => {
+    // Update room selector with current rooms and set up event listeners
+    updateRoomSelector();
+}
+
+// Load rooms dynamically from Firebase or localStorage
+function loadRooms() {
+    if (isFirebaseEnabled) {
+        // Load rooms from Firebase adminSettings
+        database.ref('adminSettings/rooms').once('value')
+            .then((snapshot) => {
+                const firebaseRooms = snapshot.val();
+                if (firebaseRooms) {
+                    rooms = firebaseRooms;
+                    updateRoomSelector();
+                } else {
+                    // Use hardcoded rooms - admin hasn't set custom rooms yet
+                    console.log('No custom rooms in Firebase, using defaults');
+                }
+            })
+            .catch((error) => {
+                console.error('Error loading rooms from Firebase:', error);
+                // Use hardcoded rooms as fallback
+            });
+    } else {
+        // Load from localStorage
+        try {
+            const storedRooms = localStorage.getItem('adminRooms');
+            if (storedRooms) {
+                rooms = JSON.parse(storedRooms);
+                updateRoomSelector();
+            }
+        } catch (e) {
+            console.error('Error loading rooms from localStorage:', e);
+            // Use hardcoded rooms as fallback
+        }
+    }
+}
+
+// Update the room selector UI with current rooms
+function updateRoomSelector() {
+    const roomSelector = document.getElementById('roomSelector');
+    if (!roomSelector) return;
+    
+    // Clear existing room buttons
+    roomSelector.innerHTML = '';
+    
+    // Create new room buttons based on current rooms
+    // Ensure consistent ordering with "general" first
+    const roomEntries = Object.entries(rooms);
+    const sortedRoomEntries = roomEntries.sort(([roomIdA], [roomIdB]) => {
+        // Always put "general" first
+        if (roomIdA === 'general') return -1;
+        if (roomIdB === 'general') return 1;
+        // Then sort alphabetically
+        return roomIdA.localeCompare(roomIdB);
+    });
+    
+    sortedRoomEntries.forEach(([roomId, roomName]) => {
+        const button = document.createElement('button');
+        button.className = 'room-button';
+        button.setAttribute('data-room', roomId);
+        button.textContent = roomName;
+        
+        // Set first room as active if no current room is set
+        if (roomId === currentRoom || (currentRoom === 'general' && roomId === sortedRoomEntries[0][0])) {
+            button.classList.add('active');
+            currentRoom = roomId; // Update current room if needed
+        }
+        
+        // Add click event listener
         button.addEventListener('click', function() {
             const roomName = this.getAttribute('data-room');
             switchRoom(roomName);
         });
+        
+        roomSelector.appendChild(button);
     });
+    
+    // Update current room display
+    const currentRoomDisplay = document.getElementById('currentRoomDisplay');
+    if (currentRoomDisplay && rooms[currentRoom]) {
+        currentRoomDisplay.textContent = rooms[currentRoom];
+    }
+    
+    console.log('Room selector updated with rooms:', Object.keys(rooms));
 }
 
 function setupPrivateChat() {
@@ -1175,6 +1254,9 @@ document.getElementById('messageInput').addEventListener('keypress', function(e)
 
 window.addEventListener('load', function() {
     document.getElementById('privateRequestModal').classList.add('hidden');
+    
+    // Load rooms on app startup
+    loadRooms();
     
     // Detect if running as installed PWA
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches || 

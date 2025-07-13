@@ -94,10 +94,17 @@ function setupAdminPanel() {
         });
     }
     
+    // Setup room management
+    const addRoomBtn = document.getElementById('addRoomBtn');
+    if (addRoomBtn) {
+        addRoomBtn.addEventListener('click', addRoom);
+    }
+    
     // Load initial statistics when admin panel opens
     if (isAdmin) {
         loadUsageStatistics();
         loadUserManagement();
+        loadRoomManagement();
     }
 }
 
@@ -729,4 +736,275 @@ function formatRegistrationAge(timestamp) {
     if (days < 7) return `${days} days ago`;
     if (days < 30) return `${Math.floor(days / 7)} weeks ago`;
     return `${Math.floor(days / 30)} months ago`;
+}
+
+// Room Management Functions
+function loadRoomManagement() {
+    if (!isAdmin) return;
+    
+    console.log('Loading room management...');
+    
+    if (isFirebaseEnabled) {
+        // Load rooms from Firebase adminSettings
+        database.ref('adminSettings/rooms').once('value')
+            .then((snapshot) => {
+                const firebaseRooms = snapshot.val();
+                if (firebaseRooms) {
+                    // Use Firebase rooms
+                    updateRoomManagementUI(firebaseRooms);
+                } else {
+                    // Migrate hardcoded rooms to Firebase
+                    console.log('No rooms in Firebase, migrating hardcoded rooms...');
+                    migrateRoomsToFirebase();
+                }
+            })
+            .catch((error) => {
+                console.error('Error loading rooms:', error);
+                // Fallback to hardcoded rooms
+                updateRoomManagementUI(rooms);
+            });
+    } else {
+        // Load from localStorage or use hardcoded rooms
+        try {
+            const storedRooms = localStorage.getItem('adminRooms');
+            if (storedRooms) {
+                updateRoomManagementUI(JSON.parse(storedRooms));
+            } else {
+                updateRoomManagementUI(rooms);
+            }
+        } catch (e) {
+            console.error('Error loading rooms from localStorage:', e);
+            updateRoomManagementUI(rooms);
+        }
+    }
+}
+
+function migrateRoomsToFirebase() {
+    if (!isFirebaseEnabled) return;
+    
+    database.ref('adminSettings/rooms').set(rooms)
+        .then(() => {
+            console.log('Rooms migrated to Firebase successfully');
+            updateRoomManagementUI(rooms);
+        })
+        .catch((error) => {
+            console.error('Error migrating rooms to Firebase:', error);
+            updateRoomManagementUI(rooms);
+        });
+}
+
+function updateRoomManagementUI(roomsData) {
+    const roomListContainer = document.getElementById('roomListContainer');
+    if (!roomListContainer) return;
+    
+    roomListContainer.innerHTML = '';
+    
+    // Sort rooms with "general" first, then alphabetically
+    const roomEntries = Object.entries(roomsData);
+    const sortedRoomEntries = roomEntries.sort(([roomIdA], [roomIdB]) => {
+        // Always put "general" first
+        if (roomIdA === 'general') return -1;
+        if (roomIdB === 'general') return 1;
+        // Then sort alphabetically
+        return roomIdA.localeCompare(roomIdB);
+    });
+    
+    sortedRoomEntries.forEach(([roomId, roomName]) => {
+        const roomItem = document.createElement('div');
+        roomItem.className = 'room-item';
+        
+        roomItem.innerHTML = `
+            <div class="room-info">
+                <span class="room-name">${roomName}</span>
+                <span class="room-id">${roomId}</span>
+            </div>
+            <div class="room-actions">
+                <button class="reset-room-btn" onclick="resetRoom('${roomId}')">🔄 Reset</button>
+                <button class="delete-room-btn" onclick="deleteRoom('${roomId}')">🗑️ Delete</button>
+            </div>
+        `;
+        
+        roomListContainer.appendChild(roomItem);
+    });
+}
+
+function addRoom() {
+    if (!isAdmin) return;
+    
+    const roomName = prompt('Enter room name (with emoji):');
+    if (!roomName || roomName.trim() === '') return;
+    
+    const roomId = prompt('Enter room ID (lowercase, no spaces):');
+    if (!roomId || roomId.trim() === '') return;
+    
+    // Validate room ID
+    if (!/^[a-z0-9-_]+$/.test(roomId.trim())) {
+        alert('Room ID can only contain lowercase letters, numbers, hyphens, and underscores.');
+        return;
+    }
+    
+    const trimmedRoomId = roomId.trim().toLowerCase();
+    const trimmedRoomName = roomName.trim();
+    
+    if (isFirebaseEnabled) {
+        // Check if room already exists
+        database.ref('adminSettings/rooms').once('value')
+            .then((snapshot) => {
+                const currentRooms = snapshot.val() || {};
+                
+                if (currentRooms[trimmedRoomId]) {
+                    alert('A room with this ID already exists!');
+                    return;
+                }
+                
+                // Add new room
+                database.ref(`adminSettings/rooms/${trimmedRoomId}`).set(trimmedRoomName)
+                    .then(() => {
+                        console.log(`Room "${trimmedRoomName}" (${trimmedRoomId}) added successfully`);
+                        loadRoomManagement(); // Refresh the list
+                        alert(`✅ Room "${trimmedRoomName}" added successfully!`);
+                        
+                        // Trigger room list update in chat interface
+                        if (typeof updateRoomSelector === 'function') {
+                            updateRoomSelector();
+                        }
+                    })
+                    .catch((error) => {
+                        console.error('Error adding room:', error);
+                        alert('Failed to add room. Please try again.');
+                    });
+            })
+            .catch((error) => {
+                console.error('Error checking existing rooms:', error);
+                alert('Failed to check existing rooms. Please try again.');
+            });
+    } else {
+        // Local storage mode
+        try {
+            const storedRooms = localStorage.getItem('adminRooms');
+            const currentRooms = storedRooms ? JSON.parse(storedRooms) : { ...rooms };
+            
+            if (currentRooms[trimmedRoomId]) {
+                alert('A room with this ID already exists!');
+                return;
+            }
+            
+            currentRooms[trimmedRoomId] = trimmedRoomName;
+            localStorage.setItem('adminRooms', JSON.stringify(currentRooms));
+            
+            console.log(`Room "${trimmedRoomName}" (${trimmedRoomId}) added successfully`);
+            loadRoomManagement(); // Refresh the list
+            alert(`✅ Room "${trimmedRoomName}" added successfully!`);
+        } catch (e) {
+            console.error('Error adding room to localStorage:', e);
+            alert('Failed to add room. Please try again.');
+        }
+    }
+}
+
+function deleteRoom(roomId) {
+    if (!isAdmin) return;
+    
+    if (!confirm(`⚠️ Are you sure you want to delete the room "${roomId}"?\n\nThis will permanently delete all messages in this room and cannot be undone!`)) {
+        return;
+    }
+    
+    // Double confirmation
+    const confirmText = prompt(`Final confirmation: Type "DELETE" (all caps) to confirm deletion of room "${roomId}"`);
+    if (confirmText !== 'DELETE') {
+        alert('Deletion cancelled. You must type "DELETE" exactly to confirm.');
+        return;
+    }
+    
+    if (isFirebaseEnabled) {
+        // Delete room and all its messages
+        const deletePromises = [
+            database.ref(`adminSettings/rooms/${roomId}`).remove(),
+            database.ref(`messages/${roomId}`).remove()
+        ];
+        
+        Promise.all(deletePromises)
+            .then(() => {
+                console.log(`Room "${roomId}" deleted successfully`);
+                loadRoomManagement(); // Refresh the list
+                alert(`✅ Room "${roomId}" has been permanently deleted.`);
+                
+                // Trigger room list update in chat interface
+                if (typeof updateRoomSelector === 'function') {
+                    updateRoomSelector();
+                }
+            })
+            .catch((error) => {
+                console.error('Error deleting room:', error);
+                alert('Failed to delete room. Please try again.');
+            });
+    } else {
+        // Local storage mode
+        try {
+            const storedRooms = localStorage.getItem('adminRooms');
+            const currentRooms = storedRooms ? JSON.parse(storedRooms) : { ...rooms };
+            
+            delete currentRooms[roomId];
+            localStorage.setItem('adminRooms', JSON.stringify(currentRooms));
+            
+            // Also remove messages for this room
+            const storedMessages = localStorage.getItem('chatMessages');
+            if (storedMessages) {
+                const allMessages = JSON.parse(storedMessages);
+                delete allMessages[roomId];
+                localStorage.setItem('chatMessages', JSON.stringify(allMessages));
+            }
+            
+            console.log(`Room "${roomId}" deleted successfully`);
+            loadRoomManagement(); // Refresh the list
+            alert(`✅ Room "${roomId}" has been permanently deleted.`);
+        } catch (e) {
+            console.error('Error deleting room from localStorage:', e);
+            alert('Failed to delete room. Please try again.');
+        }
+    }
+}
+
+function resetRoom(roomId) {
+    if (!isAdmin) return;
+    
+    if (!confirm(`⚠️ Are you sure you want to reset all messages in room "${roomId}"?\n\nThis will permanently delete all chat history for this room and cannot be undone!`)) {
+        return;
+    }
+    
+    if (isFirebaseEnabled) {
+        // Delete all messages in the room
+        database.ref(`messages/${roomId}`).remove()
+            .then(() => {
+                console.log(`Room "${roomId}" reset successfully`);
+                alert(`✅ Room "${roomId}" chat history has been cleared.`);
+                
+                // Refresh messages if user is currently in this room
+                if (typeof currentRoom !== 'undefined' && currentRoom === roomId) {
+                    if (typeof loadMessages === 'function') {
+                        loadMessages(roomId);
+                    }
+                }
+            })
+            .catch((error) => {
+                console.error('Error resetting room:', error);
+                alert('Failed to reset room. Please try again.');
+            });
+    } else {
+        // Local storage mode
+        try {
+            const storedMessages = localStorage.getItem('chatMessages');
+            if (storedMessages) {
+                const allMessages = JSON.parse(storedMessages);
+                delete allMessages[roomId];
+                localStorage.setItem('chatMessages', JSON.stringify(allMessages));
+            }
+            
+            console.log(`Room "${roomId}" reset successfully`);
+            alert(`✅ Room "${roomId}" chat history has been cleared.`);
+        } catch (e) {
+            console.error('Error resetting room in localStorage:', e);
+            alert('Failed to reset room. Please try again.');
+        }
+    }
 }
