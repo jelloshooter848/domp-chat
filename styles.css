@@ -1137,6 +1137,139 @@ body.pwa-mode button {
     background: #e0a800;
 }
 
+.welcome-customization {
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #e9ecef;
+}
+
+.welcome-option {
+    margin-bottom: 20px;
+}
+
+.welcome-option label {
+    display: block;
+    font-weight: 500;
+    margin-bottom: 5px;
+    color: #333;
+}
+
+.welcome-input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    background: white;
+    font-size: 0.9em;
+    color: #333;
+}
+
+.welcome-input:focus {
+    outline: none;
+    border-color: #4a90e2;
+}
+
+.welcome-help {
+    font-size: 0.75em;
+    color: #666;
+    margin-top: 4px;
+    font-style: italic;
+}
+
+.welcome-actions {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+.welcome-preview-btn {
+    background: #6f42c1;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 0.85em;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.welcome-preview-btn:hover {
+    background: #5a32a3;
+}
+
+.welcome-save-btn {
+    background: #28a745;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 0.85em;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.welcome-save-btn:hover {
+    background: #218838;
+}
+
+.welcome-reset-btn {
+    background: #6c757d;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 0.85em;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.welcome-reset-btn:hover {
+    background: #5a6268;
+}
+
+.welcome-preview {
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    padding: 20px;
+}
+
+.welcome-preview .preview-header {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 15px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.welcome-preview .preview-header h6 {
+    margin: 0;
+    color: #4a90e2;
+    font-size: 0.9em;
+}
+
+.preview-content {
+    text-align: center;
+    padding: 20px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 8px;
+    color: white;
+}
+
+.preview-welcome-message {
+    font-size: 1.2em;
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+
+.preview-app-description {
+    font-size: 0.9em;
+    opacity: 0.9;
+}
+
 .user-summary {
     background: #f8f9fa;
     border-radius: 12px;

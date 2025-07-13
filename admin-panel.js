@@ -156,6 +156,33 @@ function setupAdminPanel() {
         storageThreshold.addEventListener('change', saveStorageSettings);
     }
     
+    // Setup welcome message customization
+    const welcomeMessage = document.getElementById('welcomeMessage');
+    const appDescription = document.getElementById('appDescription');
+    
+    if (welcomeMessage && appDescription) {
+        loadWelcomeSettings();
+        
+        // Real-time preview as user types
+        welcomeMessage.addEventListener('input', updateWelcomePreview);
+        appDescription.addEventListener('input', updateWelcomePreview);
+    }
+    
+    const previewWelcomeBtn = document.getElementById('previewWelcomeBtn');
+    if (previewWelcomeBtn) {
+        previewWelcomeBtn.addEventListener('click', showWelcomePreview);
+    }
+    
+    const saveWelcomeBtn = document.getElementById('saveWelcomeBtn');
+    if (saveWelcomeBtn) {
+        saveWelcomeBtn.addEventListener('click', saveWelcomeSettings);
+    }
+    
+    const resetWelcomeBtn = document.getElementById('resetWelcomeBtn');
+    if (resetWelcomeBtn) {
+        resetWelcomeBtn.addEventListener('click', resetWelcomeSettings);
+    }
+    
     // Load initial statistics when admin panel opens
     if (isAdmin) {
         loadUsageStatistics();
@@ -1642,4 +1669,194 @@ function performStorageCleanup(isManual = false) {
                 alert('Failed to load messages for cleanup.');
             }
         });
+}
+
+// Welcome Message Customization
+let currentWelcomeMessage = 'Welcome to Friend Chat! 👋';
+let currentAppDescription = 'Enter your name to start chatting:';
+
+function loadWelcomeSettings() {
+    if (isFirebaseEnabled) {
+        // Load from Firebase
+        database.ref('adminSettings/welcomeMessages').once('value')
+            .then((snapshot) => {
+                const settings = snapshot.val() || {};
+                currentWelcomeMessage = settings.welcomeMessage || 'Welcome to Friend Chat! 👋';
+                currentAppDescription = settings.appDescription || 'Enter your name to start chatting:';
+                updateWelcomeUI();
+            })
+            .catch((error) => {
+                console.log('Could not load welcome settings from Firebase:', error);
+                updateWelcomeUI();
+            });
+    } else {
+        // Load from localStorage
+        try {
+            const settings = localStorage.getItem('welcomeSettings');
+            if (settings) {
+                const parsed = JSON.parse(settings);
+                currentWelcomeMessage = parsed.welcomeMessage || 'Welcome to Friend Chat! 👋';
+                currentAppDescription = parsed.appDescription || 'Enter your name to start chatting:';
+            }
+            updateWelcomeUI();
+        } catch (e) {
+            console.log('Could not load welcome settings from localStorage:', e);
+            updateWelcomeUI();
+        }
+    }
+}
+
+function updateWelcomeUI() {
+    const welcomeMessage = document.getElementById('welcomeMessage');
+    const appDescription = document.getElementById('appDescription');
+    
+    if (welcomeMessage) {
+        welcomeMessage.value = currentWelcomeMessage;
+    }
+    
+    if (appDescription) {
+        appDescription.value = currentAppDescription;
+    }
+    
+    updateWelcomePreview();
+}
+
+function updateWelcomePreview() {
+    const welcomeMessage = document.getElementById('welcomeMessage');
+    const appDescription = document.getElementById('appDescription');
+    const previewWelcomeMessage = document.getElementById('previewWelcomeMessage');
+    const previewAppDescription = document.getElementById('previewAppDescription');
+    
+    if (welcomeMessage && previewWelcomeMessage) {
+        const text = welcomeMessage.value.trim() || 'Welcome to Friend Chat! 👋';
+        previewWelcomeMessage.textContent = text;
+    }
+    
+    if (appDescription && previewAppDescription) {
+        const text = appDescription.value.trim() || 'Enter your name to start chatting:';
+        previewAppDescription.textContent = text;
+    }
+}
+
+function showWelcomePreview() {
+    const welcomePreview = document.getElementById('welcomePreview');
+    if (welcomePreview) {
+        welcomePreview.classList.remove('hidden');
+        updateWelcomePreview();
+    }
+}
+
+function saveWelcomeSettings() {
+    if (!isAdmin) return;
+    
+    const welcomeMessage = document.getElementById('welcomeMessage');
+    const appDescription = document.getElementById('appDescription');
+    
+    if (!welcomeMessage || !appDescription) return;
+    
+    const newWelcomeMessage = welcomeMessage.value.trim() || 'Welcome to Friend Chat! 👋';
+    const newAppDescription = appDescription.value.trim() || 'Enter your name to start chatting:';
+    
+    const settings = {
+        welcomeMessage: newWelcomeMessage,
+        appDescription: newAppDescription,
+        lastUpdated: Date.now()
+    };
+    
+    if (isFirebaseEnabled) {
+        // Save to Firebase
+        database.ref('adminSettings/welcomeMessages').set(settings)
+            .then(() => {
+                console.log('Welcome settings saved to Firebase');
+                currentWelcomeMessage = newWelcomeMessage;
+                currentAppDescription = newAppDescription;
+                
+                // Apply changes to the actual login screen
+                applyWelcomeChanges();
+                
+                alert('✅ Welcome message settings saved successfully!');
+            })
+            .catch((error) => {
+                console.error('Failed to save welcome settings to Firebase:', error);
+                alert('Failed to save welcome settings. Please try again.');
+            });
+    } else {
+        // Save to localStorage
+        try {
+            localStorage.setItem('welcomeSettings', JSON.stringify(settings));
+            console.log('Welcome settings saved to localStorage');
+            currentWelcomeMessage = newWelcomeMessage;
+            currentAppDescription = newAppDescription;
+            
+            // Apply changes to the actual login screen
+            applyWelcomeChanges();
+            
+            alert('✅ Welcome message settings saved successfully!');
+        } catch (e) {
+            console.error('Failed to save welcome settings to localStorage:', e);
+            alert('Failed to save welcome settings. Please try again.');
+        }
+    }
+}
+
+function resetWelcomeSettings() {
+    if (!isAdmin) return;
+    
+    if (!confirm('Are you sure you want to reset the welcome messages to their default values?')) {
+        return;
+    }
+    
+    // Reset to defaults
+    currentWelcomeMessage = 'Welcome to Friend Chat! 👋';
+    currentAppDescription = 'Enter your name to start chatting:';
+    
+    // Update UI
+    updateWelcomeUI();
+    
+    // Save the reset values
+    saveWelcomeSettings();
+}
+
+function applyWelcomeChanges() {
+    // Update the actual login screen elements
+    const loginWelcomeMessage = document.querySelector('#setup h2');
+    const loginAppDescription = document.querySelector('#setup p:first-of-type');
+    
+    if (loginWelcomeMessage) {
+        loginWelcomeMessage.textContent = currentWelcomeMessage;
+    }
+    
+    if (loginAppDescription) {
+        loginAppDescription.textContent = currentAppDescription;
+    }
+    
+    console.log('Welcome message changes applied to login screen');
+}
+
+// Function to load and apply welcome settings on app startup
+function loadAndApplyWelcomeSettings() {
+    if (isFirebaseEnabled) {
+        database.ref('adminSettings/welcomeMessages').once('value')
+            .then((snapshot) => {
+                const settings = snapshot.val() || {};
+                currentWelcomeMessage = settings.welcomeMessage || 'Welcome to Friend Chat! 👋';
+                currentAppDescription = settings.appDescription || 'Enter your name to start chatting:';
+                applyWelcomeChanges();
+            })
+            .catch((error) => {
+                console.log('Could not load welcome settings from Firebase:', error);
+            });
+    } else {
+        try {
+            const settings = localStorage.getItem('welcomeSettings');
+            if (settings) {
+                const parsed = JSON.parse(settings);
+                currentWelcomeMessage = parsed.welcomeMessage || 'Welcome to Friend Chat! 👋';
+                currentAppDescription = parsed.appDescription || 'Enter your name to start chatting:';
+                applyWelcomeChanges();
+            }
+        } catch (e) {
+            console.log('Could not load welcome settings from localStorage:', e);
+        }
+    }
 }

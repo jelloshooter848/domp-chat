@@ -1258,6 +1258,11 @@ window.addEventListener('load', function() {
     // Load rooms on app startup
     loadRooms();
     
+    // Load and apply welcome message settings
+    if (typeof loadAndApplyWelcomeSettings === 'function') {
+        loadAndApplyWelcomeSettings();
+    }
+    
     // Detect if running as installed PWA
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches || 
                         window.navigator.standalone || 

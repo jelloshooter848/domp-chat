@@ -344,10 +344,43 @@
                     </div>
                     
                     <div class="settings-section">
+                        <h5>Welcome Screen Customization</h5>
+                        <div class="welcome-customization">
+                            <div class="welcome-option">
+                                <label for="welcomeMessage">Welcome Message:</label>
+                                <input type="text" id="welcomeMessage" class="welcome-input" placeholder="Welcome to Friend Chat! 👋" maxlength="100">
+                                <div class="welcome-help">Main heading users see when they first visit</div>
+                            </div>
+                            
+                            <div class="welcome-option">
+                                <label for="appDescription">App Description:</label>
+                                <input type="text" id="appDescription" class="welcome-input" placeholder="Enter your name to start chatting:" maxlength="150">
+                                <div class="welcome-help">Instructions text below the welcome message</div>
+                            </div>
+                            
+                            <div class="welcome-actions">
+                                <button id="previewWelcomeBtn" class="welcome-preview-btn">👁️ Preview Changes</button>
+                                <button id="saveWelcomeBtn" class="welcome-save-btn">💾 Save Changes</button>
+                                <button id="resetWelcomeBtn" class="welcome-reset-btn">🔄 Reset to Default</button>
+                            </div>
+                            
+                            <div id="welcomePreview" class="welcome-preview hidden">
+                                <div class="preview-header">
+                                    <h6>Live Preview</h6>
+                                </div>
+                                <div class="preview-content">
+                                    <div class="preview-welcome-message" id="previewWelcomeMessage">Welcome to Friend Chat! 👋</div>
+                                    <div class="preview-app-description" id="previewAppDescription">Enter your name to start chatting:</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="settings-section">
                         <h5>Future Settings</h5>
                         <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; text-align: center; color: #666;">
                             🚧 Under Construction 🚧<br>
-                            Coming soon: Welcome message customization, theme colors, private chat controls
+                            Coming soon: App title customization, theme colors, private chat controls
                         </div>
                     </div>
                 </div>
