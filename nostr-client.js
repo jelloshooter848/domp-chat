@@ -26,20 +26,31 @@ class NostrClient {
 
     async initialize() {
         try {
+            console.log('🚀 Initializing Nostr client...');
+            
             // Generate or load key pair
             await this.setupKeyPair();
+            console.log('🔑 Key pair ready');
             
             // Initialize relay pool
             this.pool = new this.NostrTools.SimplePool();
+            console.log('🏊 Pool initialized');
             
-            // Connect to relays
-            await this.connectToRelays();
+            // Connect to relays with timeout
+            const timeoutPromise = new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('Connection timeout')), 8000)
+            );
+            
+            await Promise.race([
+                this.connectToRelays(),
+                timeoutPromise
+            ]);
             
             this.connected = true;
-            console.log('Nostr client initialized successfully');
+            console.log('✅ Nostr client initialized successfully');
             return true;
         } catch (error) {
-            console.error('Failed to initialize Nostr client:', error);
+            console.error('❌ Failed to initialize Nostr client:', error);
             return false;
         }
     }
@@ -61,16 +72,26 @@ class NostrClient {
     }
 
     async connectToRelays() {
+        console.log('🔗 Testing relay connections...');
+        
         // Test connectivity to relays
         const connectPromises = this.relays.map(relay => {
             return new Promise((resolve) => {
+                console.log(`   Testing ${relay}...`);
                 const ws = new WebSocket(relay);
                 ws.onopen = () => {
+                    console.log(`   ✅ ${relay} connected`);
                     ws.close();
                     resolve(relay);
                 };
-                ws.onerror = () => resolve(null);
-                setTimeout(() => resolve(null), 3000); // 3s timeout
+                ws.onerror = () => {
+                    console.log(`   ❌ ${relay} failed`);
+                    resolve(null);
+                };
+                setTimeout(() => {
+                    console.log(`   ⏰ ${relay} timeout`);
+                    resolve(null);
+                }, 3000); // 3s timeout per relay
             });
         });
 
@@ -82,7 +103,7 @@ class NostrClient {
         }
         
         this.relays = workingRelays;
-        console.log('Connected to relays:', this.relays);
+        console.log(`🎯 Connected to ${workingRelays.length}/${results.length} relays:`, workingRelays);
     }
 
     // Send a message to a room

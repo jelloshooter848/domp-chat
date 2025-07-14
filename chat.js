@@ -99,8 +99,15 @@ let firebaseListeners = {
 async function startChat(isAutoLogin = false, isTemporary = false) {
     // Wait for backends to initialize if they haven't already
     if (!backendsInitialized) {
+        if (!isAutoLogin) {
+            showConnectionStatus("Connecting to Nostr network...");
+        }
         console.log("Waiting for backend initialization...");
         await initializeBackends();
+        if (!isAutoLogin) {
+            showConnectionStatus(`Connected via ${activeBackend.toUpperCase()}`);
+            setTimeout(() => hideConnectionStatus(), 2000);
+        }
     }
     
     const usernameInput = document.getElementById('usernameInput');
@@ -453,6 +460,66 @@ function updateBackendStatus() {
         }
         
         chatTitle.innerHTML = `🗨️ Friend Chat App <span style="font-size: 0.8em; color: #666;">(${statusIcon} ${statusText})</span>`;
+    }
+}
+
+function showConnectionStatus(message) {
+    // Create or update connection status element
+    let statusEl = document.getElementById('connectionStatus');
+    if (!statusEl) {
+        statusEl = document.createElement('div');
+        statusEl.id = 'connectionStatus';
+        statusEl.style.cssText = `
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(74, 144, 226, 0.95);
+            color: white;
+            padding: 15px 25px;
+            border-radius: 10px;
+            z-index: 1000;
+            font-weight: bold;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        `;
+        document.body.appendChild(statusEl);
+    }
+    
+    statusEl.innerHTML = `
+        <div style="
+            width: 20px;
+            height: 20px;
+            border: 2px solid white;
+            border-top: 2px solid transparent;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        "></div>
+        ${message}
+    `;
+    
+    // Add spinner animation if not already added
+    if (!document.getElementById('spinnerStyle')) {
+        const style = document.createElement('style');
+        style.id = 'spinnerStyle';
+        style.textContent = `
+            @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+            }
+        `;
+        document.head.appendChild(style);
+    }
+    
+    statusEl.style.display = 'flex';
+}
+
+function hideConnectionStatus() {
+    const statusEl = document.getElementById('connectionStatus');
+    if (statusEl) {
+        statusEl.style.display = 'none';
     }
 }
 
