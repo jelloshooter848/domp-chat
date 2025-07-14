@@ -58,7 +58,49 @@ async function initializeBackends() {
 
 // Initialize backends when page loads
 document.addEventListener('DOMContentLoaded', async () => {
+    console.log('🎬 Page loaded, starting initialization...');
+    console.log('🔍 Checking for NostrTools:', typeof window.NostrTools);
+    console.log('🔍 Checking for nostrClient:', typeof window.nostrClient);
+    
+    const statusEl = document.getElementById('initStatus');
+    if (statusEl) {
+        statusEl.innerHTML = '🔄 Testing Nostr relays...';
+    }
+    
     await initializeBackends();
+    
+    if (statusEl) {
+        let statusIcon = '';
+        let statusText = '';
+        let bgColor = '';
+        
+        switch(activeBackend) {
+            case 'nostr':
+                statusIcon = '✅';
+                statusText = 'Nostr connected successfully!';
+                bgColor = '#4caf50';
+                break;
+            case 'firebase':
+                statusIcon = '⚠️';
+                statusText = 'Nostr failed, using Firebase backup';
+                bgColor = '#ff9800';
+                break;
+            case 'local':
+                statusIcon = '🔴';
+                statusText = 'No network - using local mode';
+                bgColor = '#f44336';
+                break;
+        }
+        
+        statusEl.innerHTML = `${statusIcon} ${statusText}`;
+        statusEl.style.background = bgColor;
+        statusEl.style.color = 'white';
+        
+        // Hide after 3 seconds
+        setTimeout(() => {
+            if (statusEl) statusEl.style.display = 'none';
+        }, 3000);
+    }
 });
 
 let username = '';
