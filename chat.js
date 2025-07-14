@@ -9,22 +9,49 @@ const firebaseConfig = {
   appId: "1:749608456867:web:5c84e879670118880f6516"
 };
 
-// Initialize Firebase
+// Initialize Nostr and Firebase
 let database = null;
 let isFirebaseEnabled = false;
+let isNostrEnabled = false;
+let activeBackend = 'local'; // 'nostr', 'firebase', or 'local'
 
-try {
-    if (firebaseConfig.apiKey !== "YOUR_API_KEY") {
-        firebase.initializeApp(firebaseConfig);
-        database = firebase.database();
-        isFirebaseEnabled = true;
-        console.log("Firebase connected successfully!");
-    } else {
-        console.log("Firebase not configured - running in local mode");
+// Try to initialize Nostr first
+async function initializeBackends() {
+    // Try Nostr first
+    if (window.nostrClient) {
+        try {
+            const nostrSuccess = await window.nostrClient.initialize();
+            if (nostrSuccess) {
+                isNostrEnabled = true;
+                activeBackend = 'nostr';
+                console.log("Nostr connected successfully!");
+                return;
+            }
+        } catch (error) {
+            console.log("Nostr connection failed:", error);
+        }
     }
-} catch (error) {
-    console.log("Firebase connection failed - running in local mode:", error);
+
+    // Fallback to Firebase
+    try {
+        if (firebaseConfig.apiKey !== "YOUR_API_KEY") {
+            firebase.initializeApp(firebaseConfig);
+            database = firebase.database();
+            isFirebaseEnabled = true;
+            activeBackend = 'firebase';
+            console.log("Firebase connected successfully!");
+        } else {
+            console.log("Firebase not configured - running in local mode");
+            activeBackend = 'local';
+        }
+    } catch (error) {
+        console.log("Firebase connection failed - running in local mode:", error);
+        activeBackend = 'local';
+    }
 }
+
+// Initialize backends when page loads
+document.addEventListener('DOMContentLoaded', initializeBackends);
 
 let username = '';
 let messages = {};
@@ -359,7 +386,8 @@ function addUserToFirebase() {
     // Remove user when they disconnect
     userPresenceRef.onDisconnect().remove();
     
-    setupFirebaseListeners();
+    setupMessageListeners();
+    updateBackendStatus();
     completeSetup();
 }
 
@@ -387,6 +415,31 @@ function ensureAdminRegistered() {
             console.log('Admin account auto-registered in Firebase');
         }
     });
+}
+
+function updateBackendStatus() {
+    const chatTitle = document.querySelector('.chat-title');
+    if (chatTitle) {
+        let statusIcon = '';
+        let statusText = '';
+        
+        switch(activeBackend) {
+            case 'nostr':
+                statusIcon = '🟢';
+                statusText = 'Nostr';
+                break;
+            case 'firebase':
+                statusIcon = '🟡';
+                statusText = 'Firebase';
+                break;
+            case 'local':
+                statusIcon = '🔴';
+                statusText = 'Local';
+                break;
+        }
+        
+        chatTitle.innerHTML = `🗨️ Friend Chat App <span style="font-size: 0.8em; color: #666;">(${statusIcon} ${statusText})</span>`;
+    }
 }
 
 function completeSetup() {
@@ -431,6 +484,80 @@ function completeSetup() {
             showNotification(`Running in local mode 💻`, 'info');
         }
         updateOnlineUsersList({}); // Initialize local mode display
+    }
+}
+
+// Unified message listeners for both Nostr and Firebase
+let nostrSubscriptions = {
+    roomSubscriptions: {},
+    privateSubscription: null,
+    presenceSubscription: null
+};
+
+function setupMessageListeners() {
+    if (activeBackend === 'nostr' && isNostrEnabled) {
+        setupNostrListeners();
+    } else if (activeBackend === 'firebase' && isFirebaseEnabled) {
+        setupFirebaseListeners();
+    }
+}
+
+function setupNostrListeners() {
+    // Clean up existing subscriptions
+    cleanupNostrListeners();
+    
+    // Subscribe to current room messages
+    Object.keys(rooms).forEach(roomName => {
+        const subId = window.nostrClient.subscribeToRoom(roomName, (messageData, event) => {
+            if (currentRoom === roomName && !isPrivateChat) {
+                // Don't display our own messages twice
+                if (messageData.username !== username) {
+                    displayMessage(messageData, false);
+                }
+            }
+        });
+        nostrSubscriptions.roomSubscriptions[roomName] = subId;
+    });
+    
+    // Subscribe to private messages
+    nostrSubscriptions.privateSubscription = window.nostrClient.subscribeToPrivateMessages((messageData, event) => {
+        if (isPrivateChat && privateChatFriend === messageData.from) {
+            displayMessage({
+                text: messageData.text,
+                username: messageData.from,
+                timestamp: messageData.timestamp,
+                id: messageData.id
+            }, false);
+        }
+        // TODO: Show notification for new private messages
+    });
+    
+    // Subscribe to presence updates
+    nostrSubscriptions.presenceSubscription = window.nostrClient.subscribeToPresence((presenceData, event) => {
+        // Update online users list
+        updateOnlineUsersList();
+    });
+}
+
+function cleanupNostrListeners() {
+    // Clean up room subscriptions
+    Object.values(nostrSubscriptions.roomSubscriptions).forEach(subId => {
+        if (subId) {
+            window.nostrClient.unsubscribe(subId);
+        }
+    });
+    nostrSubscriptions.roomSubscriptions = {};
+    
+    // Clean up private message subscription
+    if (nostrSubscriptions.privateSubscription) {
+        window.nostrClient.unsubscribe(nostrSubscriptions.privateSubscription);
+        nostrSubscriptions.privateSubscription = null;
+    }
+    
+    // Clean up presence subscription
+    if (nostrSubscriptions.presenceSubscription) {
+        window.nostrClient.unsubscribe(nostrSubscriptions.presenceSubscription);
+        nostrSubscriptions.presenceSubscription = null;
     }
 }
 
@@ -557,7 +684,7 @@ function cleanupFirebaseListeners() {
     }
 }
 
-function sendMessage() {
+async function sendMessage() {
     const messageInput = document.getElementById('messageInput');
     const messageText = messageInput.value.trim();
     
@@ -572,7 +699,25 @@ function sendMessage() {
         id: Date.now()
     };
     
-    if (isFirebaseEnabled) {
+    if (activeBackend === 'nostr' && isNostrEnabled) {
+        try {
+            if (isPrivateChat) {
+                // Send private message via Nostr
+                // Note: We'd need the recipient's pubkey for private messages
+                // For now, display locally
+                displayMessage(message, true);
+                console.log('Nostr private messages need recipient pubkey implementation');
+            } else {
+                // Send public message via Nostr
+                await window.nostrClient.sendMessage(currentRoom, messageText, username);
+                // Don't display here, let the subscription handle it
+            }
+        } catch (error) {
+            console.error('Failed to send via Nostr:', error);
+            // Fallback to local display
+            displayMessage(message, true);
+        }
+    } else if (activeBackend === 'firebase' && isFirebaseEnabled) {
         if (isPrivateChat) {
             // Send private message
             database.ref(`privateMessages/${privateChatFriend}`).push({
