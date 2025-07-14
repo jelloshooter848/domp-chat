@@ -15,16 +15,21 @@ let isFirebaseEnabled = false;
 let isNostrEnabled = false;
 let activeBackend = 'local'; // 'nostr', 'firebase', or 'local'
 
+// Backend initialization flag
+let backendsInitialized = false;
+
 // Try to initialize Nostr first
 async function initializeBackends() {
     // Try Nostr first
     if (window.nostrClient) {
         try {
+            console.log("Attempting to connect to Nostr...");
             const nostrSuccess = await window.nostrClient.initialize();
             if (nostrSuccess) {
                 isNostrEnabled = true;
                 activeBackend = 'nostr';
                 console.log("Nostr connected successfully!");
+                backendsInitialized = true;
                 return;
             }
         } catch (error) {
@@ -48,10 +53,13 @@ async function initializeBackends() {
         console.log("Firebase connection failed - running in local mode:", error);
         activeBackend = 'local';
     }
+    backendsInitialized = true;
 }
 
 // Initialize backends when page loads
-document.addEventListener('DOMContentLoaded', initializeBackends);
+document.addEventListener('DOMContentLoaded', async () => {
+    await initializeBackends();
+});
 
 let username = '';
 let messages = {};
@@ -88,7 +96,13 @@ let firebaseListeners = {
     userListener: null
 };
 
-function startChat(isAutoLogin = false, isTemporary = false) {
+async function startChat(isAutoLogin = false, isTemporary = false) {
+    // Wait for backends to initialize if they haven't already
+    if (!backendsInitialized) {
+        console.log("Waiting for backend initialization...");
+        await initializeBackends();
+    }
+    
     const usernameInput = document.getElementById('usernameInput');
     const pinInput = document.getElementById('pinInput');
     const setupDiv = document.getElementById('setup');
@@ -198,8 +212,8 @@ function clearSession() {
     console.log('Session cleared');
 }
 
-function startTempChat() {
-    startChat(false, true);
+async function startTempChat() {
+    await startChat(false, true);
 }
 
 function localUsernameCheck(isAutoLogin = false, pin = '', forceTemporary = false) {
@@ -1407,19 +1421,19 @@ function updateLastSeen() {
     }
 }
 
-document.getElementById('startChat').addEventListener('click', () => startChat());
-document.getElementById('tempChat').addEventListener('click', startTempChat);
+document.getElementById('startChat').addEventListener('click', async () => await startChat());
+document.getElementById('tempChat').addEventListener('click', async () => await startTempChat());
 document.getElementById('sendButton').addEventListener('click', sendMessage);
 
-document.getElementById('usernameInput').addEventListener('keypress', function(e) {
+document.getElementById('usernameInput').addEventListener('keypress', async function(e) {
     if (e.key === 'Enter') {
-        startChat();
+        await startChat();
     }
 });
 
-document.getElementById('pinInput').addEventListener('keypress', function(e) {
+document.getElementById('pinInput').addEventListener('keypress', async function(e) {
     if (e.key === 'Enter') {
-        startChat();
+        await startChat();
     }
 });
 
@@ -1604,8 +1618,8 @@ function tryAutoLogin() {
         } else {
             // Temporary user - attempt auto-login
             showNotification('Reconnecting as ' + savedUsername + '...', 'info');
-            setTimeout(() => {
-                startChat(true); // true indicates auto-login attempt
+            setTimeout(async () => {
+                await startChat(true); // true indicates auto-login attempt
             }, 500);
         }
     }
